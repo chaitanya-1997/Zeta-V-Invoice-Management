@@ -188,7 +188,7 @@ exports.getProjects = async (req, res) => {
         p.end_date,
         p.budget,
         c.name AS customer_name,
-
+c.id AS customer_id,
         COUNT(DISTINCT pm.project_user_id) AS members_count,
         COUNT(DISTINCT pt.id) AS tasks_count
 
