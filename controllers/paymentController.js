@@ -161,3 +161,126 @@ exports.getAllPayments = async (req, res) => {
   }
 
 };
+
+exports.updatePayment = async (req, res) => {
+  const conn = await db.promise().getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const { id } = req.params;
+
+    const {
+      amount,
+      payment_date,
+      payment_mode,
+      reference,
+      notes
+    } = req.body;
+
+    // 🔍 Get existing payment
+    const [paymentRows] = await conn.query(
+      "SELECT * FROM zv_payments WHERE id = ?",
+      [id]
+    );
+
+    if (paymentRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found"
+      });
+    }
+
+    const payment = paymentRows[0];
+
+    // 🔍 Get invoice
+    const [invRows] = await conn.query(
+      "SELECT total, total_paid FROM zv_invoices WHERE id = ?",
+      [payment.invoice_id]
+    );
+
+    const invoice = invRows[0];
+
+    // 🧠 Recalculate totals (remove old + add new)
+    const updatedTotalPaid =
+      Number(invoice.total_paid) - Number(payment.amount) + Number(amount);
+
+    const balanceDue = Number(invoice.total) - updatedTotalPaid;
+
+    let status = "partial";
+    if (updatedTotalPaid >= invoice.total) status = "paid";
+
+    // ✅ Update payment
+    await conn.query(
+      `UPDATE zv_payments SET
+        amount = ?,
+        payment_date = ?,
+        payment_mode = ?,
+        reference = ?,
+        notes = ?
+      WHERE id = ?`,
+      [amount, payment_date, payment_mode, reference, notes, id]
+    );
+
+    // ✅ Update invoice
+    await conn.query(
+      `UPDATE zv_invoices SET
+        total_paid = ?,
+        balance_due = ?,
+        status = ?
+      WHERE id = ?`,
+      [
+        updatedTotalPaid,
+        balanceDue < 0 ? 0 : balanceDue,
+        status,
+        payment.invoice_id
+      ]
+    );
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: "Payment updated successfully"
+    });
+
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  } finally {
+    conn.release();
+  }
+};
+
+
+exports.getPaymentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await db.promise().query(
+      `SELECT * FROM zv_payments WHERE id = ?`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

@@ -904,14 +904,13 @@ exports.deleteQuote = async (req, res) => {
 };
 
 
-
 // exports.updateQuote = async (req, res) => {
 //   const conn = await db.promise().getConnection();
 
 //   try {
 //     await conn.beginTransaction();
 
-//     const { id } = req.params; // Quote ID from URL
+//     const { id } = req.params;
 //     const userId = req.user.id;
 
 //     const {
@@ -925,42 +924,33 @@ exports.deleteQuote = async (req, res) => {
 //       adjustment = 0,
 //       notes,
 //       terms,
-//       status = "draft", // ✅ Added status field with default value
+//       status = "draft",
 //       items = [],
 //       gst_lines = [],
 //     } = req.body;
 
 //     if (!customer_id || !quote_date || !expiry_date) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Required fields missing",
-//       });
+//       return res.status(400).json({ success: false, message: "Required fields missing" });
 //     }
 
-//     // ✅ Validate status field
 //     const validStatuses = ["draft", "sent", "accepted", "declined", "expired"];
-//     if (status && !validStatuses.includes(status)) {
+//     if (!validStatuses.includes(status)) {
 //       return res.status(400).json({
 //         success: false,
-//         message:
-//           "Invalid status. Must be one of: draft, sent, accepted, declined, expired",
+//         message: "Invalid status. Must be one of: draft, sent, accepted, declined, expired",
 //       });
 //     }
 
-//     // 1. Check if quote exists
-//     const [existing] = await conn.query(
-//       `SELECT status FROM zv_quotes WHERE id = ?`,
-//       [id],
-//     );
+//     // Check existing quote
+//  const [existing] = await conn.query(
+//   `SELECT status FROM zv_quotes WHERE id = ?`,
+//   [id]
+// );
 
 //     if (existing.length === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Quote not found",
-//       });
+//       return res.status(404).json({ success: false, message: "Quote not found" });
 //     }
 
-//     // Optional: Prevent editing if already accepted
 //     if (existing[0].status === "accepted") {
 //       return res.status(400).json({
 //         success: false,
@@ -986,7 +976,7 @@ exports.deleteQuote = async (req, res) => {
 
 //     const total = after_discount - tds_amt + total_gst_amt + Number(adjustment);
 
-//     /* ====================== UPDATE MAIN QUOTE ====================== */
+//     /* ====================== UPDATE QUOTE ====================== */
 //     await conn.query(
 //       `
 //       UPDATE zv_quotes 
@@ -1012,49 +1002,115 @@ exports.deleteQuote = async (req, res) => {
 //       WHERE id = ?
 //     `,
 //       [
-//         customer_id,
-//         reference,
-//         quote_date,
-//         expiry_date,
-//         subject,
-//         subtotal,
-//         discount_pct,
-//         discount_amt,
-//         after_discount,
-//         tds_pct,
-//         tds_amt,
-//         total_gst_amt,
-//         adjustment,
-//         total,
-//         notes,
-//         terms,
-//         status, // ✅ Added status to UPDATE query
-//         id,
-//       ],
+//         customer_id, reference, quote_date, expiry_date, subject,
+//         subtotal, discount_pct, discount_amt, after_discount,
+//         tds_pct, tds_amt, total_gst_amt, adjustment, total,
+//         notes, terms, status, id,
+//       ]
 //     );
 
-//     /* ====================== DELETE OLD DATA ====================== */
-//     // Delete old items and GST lines
+//     /* ====================== DELETE + RE-INSERT ITEMS & GST ====================== */
 //     await conn.query(`DELETE FROM zv_quote_items WHERE quote_id = ?`, [id]);
 //     await conn.query(`DELETE FROM zv_quote_gst_lines WHERE quote_id = ?`, [id]);
 
-//     /* ====================== INSERT NEW DATA ====================== */
-//     // Reuse your model functions (recommended)
 //     if (items.length > 0) {
 //       await quoteModel.insertItems(conn, id, items);
 //     }
-
 //     if (gst_lines.length > 0) {
 //       await quoteModel.insertGST(conn, id, gst_lines, after_discount);
+//     }
+
+//     let invoiceId = null;
+//     let invoiceNumber = null;
+
+
+//     /* ====================== CONVERT TO INVOICE IF ACCEPTED ====================== */
+//     if (status === "accepted") {
+//       invoiceNumber = "INV-" + Date.now().toString().slice(-6);
+
+
+//       const [invoiceResult] = await conn.query(
+//         `INSERT INTO zv_invoices (
+//           quote_id, invoice_number, customer_id, project_id, reference,
+//           invoice_date, due_date, subject,
+//           subtotal, discount_pct, discount_amt, after_discount,
+//           tds_pct, tds_amt, total_gst_amt, adjustment, total,
+//           notes, terms, created_by
+//         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+//         [
+//           id,                                 // quote_id
+//             // quote_number
+//           invoiceNumber,
+//           customer_id,
+//           null,                               // project_id (you can pass if needed)
+//           reference,
+//           quote_date,                         // invoice_date = quote_date
+//           expiry_date,                        // due_date = expiry_date (or set your own logic)
+//           subject,
+//           subtotal,
+//           discount_pct,
+//           discount_amt,
+//           after_discount,
+//           tds_pct,
+//           tds_amt,
+//           total_gst_amt,
+//           adjustment,
+//           total,
+//           notes,
+//           terms,
+//           userId,
+//         ]
+//       );
+
+//       invoiceId = invoiceResult.insertId;
+
+//       /* Copy Items */
+//       for (let i = 0; i < items.length; i++) {
+//         const item = items[i];
+//         const amount = Number(item.qty || 0) * Number(item.rate || 0);
+
+//         await conn.query(
+//           `INSERT INTO zv_invoice_items 
+//            (invoice_id, description, quantity, rate, amount, sort_order)
+//            VALUES (?,?,?,?,?,?)`,
+//           [invoiceId, item.description, item.qty, item.rate, amount, i + 1]
+//         );
+//       }
+
+//       /* Copy GST Lines */
+//       for (let i = 0; i < gst_lines.length; i++) {
+//         const gst = gst_lines[i];
+//         const gstAmount = after_discount * (gst.rate / 100);
+
+//         await conn.query(
+//           `INSERT INTO zv_invoice_gst_lines 
+//            (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
+//            VALUES (?,?,?,?,?,?)`,
+//           [
+//             invoiceId,
+//             gst.gst_type,
+//             gst.rate,
+//             gst.is_custom || 0,
+//             gstAmount,
+//             i + 1,
+//           ]
+//         );
+//       }
 //     }
 
 //     await conn.commit();
 
 //     res.json({
 //       success: true,
-//       message: "Quote updated successfully",
+//       message: status === "accepted" 
+//         ? "Quote accepted and converted to invoice successfully" 
+//         : "Quote updated successfully",
 //       quote_id: id,
-//       status: status, // ✅ Return updated status in response
+//       status,
+//       ...(invoiceId && {
+//         invoice_id: invoiceId,
+//         invoice_number: invoiceNumber,
+//       }),
 //     });
 //   } catch (error) {
 //     await conn.rollback();
@@ -1109,9 +1165,9 @@ exports.updateQuote = async (req, res) => {
       });
     }
 
-    // Check existing quote
+    /* ====================== FETCH EXISTING QUOTE ====================== */
     const [existing] = await conn.query(
-      `SELECT status FROM zv_quotes WHERE id = ?`,
+      `SELECT status, quote_number FROM zv_quotes WHERE id = ?`,
       [id]
     );
 
@@ -1125,6 +1181,8 @@ exports.updateQuote = async (req, res) => {
         message: "Cannot edit an accepted quote",
       });
     }
+
+    const quoteNumber = existing[0].quote_number; // ✅ NEW
 
     /* ====================== CALCULATE TOTALS ====================== */
     let subtotal = 0;
@@ -1197,20 +1255,14 @@ exports.updateQuote = async (req, res) => {
 
       const [invoiceResult] = await conn.query(
         `INSERT INTO zv_invoices (
-          quote_id, invoice_number, customer_id, project_id, reference,
-          invoice_date, due_date, subject,
-          subtotal, discount_pct, discount_amt, after_discount,
-          tds_pct, tds_amt, total_gst_amt, adjustment, total,
-          notes, terms, created_by
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          id,                                 // quote_id
-          invoiceNumber,
+          quote_id,
+          quote_number,        -- ✅ NEW
+          invoice_number,
           customer_id,
-          null,                               // project_id (you can pass if needed)
+          project_id,
           reference,
-          quote_date,                         // invoice_date = quote_date
-          expiry_date,                        // due_date = expiry_date (or set your own logic)
+          invoice_date,
+          due_date,
           subject,
           subtotal,
           discount_pct,
@@ -1221,6 +1273,31 @@ exports.updateQuote = async (req, res) => {
           total_gst_amt,
           adjustment,
           total,
+          balance_due,
+          notes,
+          terms,
+          created_by
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          id,
+          quoteNumber,         // ✅ NEW
+          invoiceNumber,
+          customer_id,
+          null,
+          reference,
+          quote_date,
+          expiry_date,
+          subject,
+          subtotal,
+          discount_pct,
+          discount_amt,
+          after_discount,
+          tds_pct,
+          tds_amt,
+          total_gst_amt,
+          adjustment,
+          total,
+          total, // balance_due = total (initially)
           notes,
           terms,
           userId,
@@ -1229,7 +1306,7 @@ exports.updateQuote = async (req, res) => {
 
       invoiceId = invoiceResult.insertId;
 
-      /* Copy Items */
+      /* ====================== COPY ITEMS ====================== */
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const amount = Number(item.qty || 0) * Number(item.rate || 0);
@@ -1242,7 +1319,7 @@ exports.updateQuote = async (req, res) => {
         );
       }
 
-      /* Copy GST Lines */
+      /* ====================== COPY GST ====================== */
       for (let i = 0; i < gst_lines.length; i++) {
         const gst = gst_lines[i];
         const gstAmount = after_discount * (gst.rate / 100);
@@ -1267,8 +1344,8 @@ exports.updateQuote = async (req, res) => {
 
     res.json({
       success: true,
-      message: status === "accepted" 
-        ? "Quote accepted and converted to invoice successfully" 
+      message: status === "accepted"
+        ? "Quote accepted and converted to invoice successfully"
         : "Quote updated successfully",
       quote_id: id,
       status,
@@ -1277,6 +1354,7 @@ exports.updateQuote = async (req, res) => {
         invoice_number: invoiceNumber,
       }),
     });
+
   } catch (error) {
     await conn.rollback();
     console.error(error);

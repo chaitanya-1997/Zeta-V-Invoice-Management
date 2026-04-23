@@ -604,9 +604,10 @@ exports.createInvoice = async (req, res) => {
         total,
         notes,
         terms,
-        created_by
+        created_by,
+        balance_due
       )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         invoiceNumber,
         customer_id,
@@ -627,6 +628,7 @@ exports.createInvoice = async (req, res) => {
         notes,
         terms,
         userId,
+        total,
       ],
     );
 
@@ -700,40 +702,59 @@ exports.createInvoice = async (req, res) => {
   }
 };
 
-exports.getAllInvoices = async (req, res) => {
-  try {
-    const [rows] = await db.promise().query(`
-      SELECT
-        i.id,
-        i.invoice_number,
-        c.name AS customer_name,
-         c.company_name AS customer_company,
-         c.currency AS customer_currency,
-         c.id AS customer_id,
-        i.reference,
-        i.invoice_date,
-        i.due_date,
-        i.subtotal,
-        i.total,
-        i.status,
-        i.created_at,i.total_paid,i.balance_due
-      FROM zv_invoices i
-      JOIN zv_customers c ON c.id = i.customer_id
-      ORDER BY i.created_at DESC
-    `);
+// exports.getAllInvoices = async (req, res) => {
+//   try {
+    
+//   const [rows] = await db.promise().query(`
+//   SELECT
+//     i.id,
+//     i.invoice_number,
+    
+//     c.name AS customer_name,
+//     c.company_name AS customer_company,
+//     c.currency AS customer_currency,
+//     c.id AS customer_id,
 
-    res.json({
-      success: true,
-      total: rows.length,
-      data: rows,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+//     -- ✅ NEW: Billing Address fields
+//     addr.city AS billing_city,
+//     addr.country AS billing_country,
+
+//     i.reference,
+//     i.invoice_date,
+//     i.due_date,
+//     i.subtotal,
+//     i.total,
+//     i.status,
+//     i.created_at,
+//     i.total_paid,
+//     i.balance_due,
+//     I.quote_number
+
+//   FROM zv_invoices i
+
+//   JOIN zv_customers c 
+//     ON c.id = i.customer_id
+
+//   -- ✅ NEW JOIN (only billing address)
+//   LEFT JOIN zv_customer_addresses addr 
+//     ON addr.customer_id = c.id 
+//     AND addr.address_type = 'billing'
+
+//   ORDER BY i.created_at DESC
+// `);
+
+//     res.json({
+//       success: true,
+//       total: rows.length,
+//       data: rows,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
 
 // exports.getInvoiceById = async (req, res) => {
 //   try {
@@ -807,6 +828,62 @@ exports.getAllInvoices = async (req, res) => {
 //     });
 //   }
 // };
+
+
+
+exports.getAllInvoices = async (req, res) => {
+  try {
+    
+    const [rows] = await db.promise().query(`
+      SELECT
+        i.id,
+        i.invoice_number,
+        i.quote_number,        -- ✅ NEW
+
+        c.name AS customer_name,
+        c.company_name AS customer_company,
+        c.currency AS customer_currency,
+        c.id AS customer_id,
+
+        -- Billing Address
+        addr.city AS billing_city,
+        addr.country AS billing_country,
+
+        i.reference,
+        i.invoice_date,
+        i.due_date,
+        i.subtotal,
+        i.total,
+        i.status,
+        i.created_at,
+        i.total_paid,
+        i.balance_due
+
+      FROM zv_invoices i
+
+      JOIN zv_customers c 
+        ON c.id = i.customer_id
+
+      LEFT JOIN zv_customer_addresses addr 
+        ON addr.customer_id = c.id 
+        AND addr.address_type = 'billing'
+
+      ORDER BY i.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      total: rows.length,
+      data: rows,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 exports.getInvoiceById = async (req, res) => {
   try {
