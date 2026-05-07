@@ -118,10 +118,6 @@ exports.updateCompanyProfile = async (req, res) => {
 
 
 
-
-
-
-
 exports.getTaxSettings = async (req, res) => {
 
   try {
@@ -195,7 +191,6 @@ exports.updateTaxSettings = async (req, res) => {
   }
 
 };
-
 
 
 
@@ -570,6 +565,7 @@ exports.updatePreferences = async (req, res) => {
 };
 
 
+
 exports.deleteInvoiceSequence = async (req, res) => {
 
   const conn = await db.promise().getConnection();
@@ -630,6 +626,8 @@ exports.deleteInvoiceSequence = async (req, res) => {
   }
 };
 
+
+
 exports.createInvoiceSequence = async (req, res) => {
 
   try {
@@ -678,4 +676,154 @@ exports.createInvoiceSequence = async (req, res) => {
 
   }
 
+};
+
+
+
+exports.getAddresses = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT * FROM zv_company_addresses ORDER BY country_code, created_at ASC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.createAddress = async (req, res) => {
+  try {
+    const { country_code, label, street, city, state, zip, country, phone, email } = req.body;
+
+    if (!country_code) return res.status(400).json({ success: false, message: 'Country code is required' });
+
+    const [result] = await db.promise().query(
+      `INSERT INTO zv_company_addresses
+        (country_code, label, street, city, state, zip, country, phone, email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [country_code, label || null, street || null, city || null, state || null,
+       zip || null, country || null, phone || null, email || null]
+    );
+
+    res.json({ success: true, message: 'Address added', id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.updateAddress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { country_code, label, street, city, state, zip, country, phone, email } = req.body;
+
+    const [exists] = await db.promise().query(`SELECT id FROM zv_company_addresses WHERE id = ?`, [id]);
+    if (exists.length === 0) return res.status(404).json({ success: false, message: 'Address not found' });
+
+    await db.promise().query(
+      `UPDATE zv_company_addresses SET
+        country_code = ?, label = ?, street = ?, city = ?,
+        state = ?, zip = ?, country = ?, phone = ?, email = ?
+       WHERE id = ?`,
+      [country_code, label || null, street || null, city || null, state || null,
+       zip || null, country || null, phone || null, email || null, id]
+    );
+
+    res.json({ success: true, message: 'Address updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.deleteAddress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [exists] = await db.promise().query(`SELECT id FROM zv_company_addresses WHERE id = ?`, [id]);
+    if (exists.length === 0) return res.status(404).json({ success: false, message: 'Address not found' });
+
+    await db.promise().query(`DELETE FROM zv_company_addresses WHERE id = ?`, [id]);
+    res.json({ success: true, message: 'Address deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.getBankDetails = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT * FROM zv_bank_details ORDER BY is_default DESC, created_at ASC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.createBankDetail = async (req, res) => {
+  try {
+    const { bank_name, branch, account_name, account_number, ifsc_code, swift_code, currency, country_code, is_default } = req.body;
+
+    if (!bank_name?.trim()) return res.status(400).json({ success: false, message: 'Bank name is required' });
+    if (!account_number?.trim()) return res.status(400).json({ success: false, message: 'Account number is required' });
+
+    // If marking as default — clear existing default
+    if (is_default) await db.promise().query(`UPDATE zv_bank_details SET is_default = 0`);
+
+    const [result] = await db.promise().query(
+      `INSERT INTO zv_bank_details
+        (bank_name, branch, account_name, account_number, ifsc_code, swift_code, currency, country_code, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [bank_name.trim(), branch || null, account_name || null, account_number.trim(),
+       ifsc_code || null, swift_code || null, currency || 'INR', country_code || null, is_default ? 1 : 0]
+    );
+
+    res.json({ success: true, message: 'Bank detail added', id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.updateBankDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bank_name, branch, account_name, account_number, ifsc_code, swift_code, currency, country_code, is_default } = req.body;
+
+    const [exists] = await db.promise().query(`SELECT id FROM zv_bank_details WHERE id = ?`, [id]);
+    if (exists.length === 0) return res.status(404).json({ success: false, message: 'Bank detail not found' });
+
+    if (is_default) await db.promise().query(`UPDATE zv_bank_details SET is_default = 0`);
+
+    await db.promise().query(
+      `UPDATE zv_bank_details SET
+        bank_name = ?, branch = ?, account_name = ?, account_number = ?,
+        ifsc_code = ?, swift_code = ?, currency = ?, country_code = ?, is_default = ?
+       WHERE id = ?`,
+      [bank_name, branch || null, account_name || null, account_number,
+       ifsc_code || null, swift_code || null, currency || 'INR',
+       country_code || null, is_default ? 1 : 0, id]
+    );
+
+    res.json({ success: true, message: 'Bank detail updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.deleteBankDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [exists] = await db.promise().query(`SELECT id FROM zv_bank_details WHERE id = ?`, [id]);
+    if (exists.length === 0) return res.status(404).json({ success: false, message: 'Bank detail not found' });
+
+    await db.promise().query(`DELETE FROM zv_bank_details WHERE id = ?`, [id]);
+    res.json({ success: true, message: 'Bank detail deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };

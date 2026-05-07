@@ -64,4 +64,28 @@ router.post(
   settingsController.createInvoiceSequence,
 );
 
+router.get("/settings/addresses", verifyToken, settingsController.getAddresses);
+
+router.post("/settings/addresses", verifyToken, settingsController.createAddress);
+
+router.put("/settings/addresses/:id", verifyToken, settingsController.updateAddress);
+
+router.delete("/settings/addresses/:id", verifyToken, settingsController.deleteAddress);
+
+router.get("/settings/bank-details", verifyToken, settingsController.getBankDetails);
+
+router.post("/settings/bank-details", verifyToken, settingsController.createBankDetail);
+
+router.put(
+  "/settings/bank-details/:id",
+  verifyToken,
+  settingsController.updateBankDetail,
+);
+
+router.delete(
+  "/settings/bank-details/:id",
+  verifyToken,
+  settingsController.deleteBankDetail,
+);
+
 module.exports = router;
