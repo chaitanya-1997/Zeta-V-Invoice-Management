@@ -1,5 +1,10 @@
 const db = require("../config/db");
 
+
+const axios = require("axios");
+
+
+
 exports.createPayment = async (req, res) => {
 
   const conn = await db.promise().getConnection();
@@ -117,6 +122,186 @@ exports.createPayment = async (req, res) => {
   }
 
 };
+
+
+// exports.createPayment = async (req, res) => {
+
+//   const conn = await db.promise().getConnection();
+
+//   try {
+
+//     await conn.beginTransaction();
+
+//     const userId = req.user.id;
+
+//     const {
+//       customer_id,
+//       invoice_id,
+//       amount,
+//       payment_date,
+//       payment_mode,
+//       reference,
+//       notes
+//     } = req.body;
+
+//     if (!customer_id || !invoice_id || !amount) {
+//       return res.status(400).json({
+//         success:false,
+//         message:"Required fields missing"
+//       });
+//     }
+
+//     /* =========================
+//        GET CUSTOMER CURRENCY
+//     ========================== */
+
+//     const [custRows] = await conn.query(
+//       `SELECT currency
+//        FROM zv_customers
+//        WHERE id = ?`,
+//       [customer_id]
+//     );
+
+//     const currency = custRows[0]?.currency;
+
+//     /* =========================
+//        GET LIVE EXCHANGE RATE
+//     ========================== */
+
+//     const { data } = await axios.get(
+//       "https://api.exchangerate-api.com/v4/latest/USD"
+//     );
+
+//     const exchangeRate = data.rates[currency] || 1;
+
+//     /* =========================
+//        CONVERT TO USD
+//     ========================== */
+
+//     const amountUSD =
+//       Number(amount) / Number(exchangeRate);
+
+//     /* =========================
+//        GET INVOICE
+//     ========================== */
+
+//     const [invRows] = await conn.query(
+//       "SELECT total, total_paid FROM zv_invoices WHERE id=?",
+//       [invoice_id]
+//     );
+
+//     if (invRows.length === 0) {
+//       return res.status(404).json({
+//         success:false,
+//         message:"Invoice not found"
+//       });
+//     }
+
+//     const invoice = invRows[0];
+
+//     const newTotalPaid =
+//       Number(invoice.total_paid) + Number(amount);
+
+//     const balanceDue =
+//       Number(invoice.total) - newTotalPaid;
+
+//     /* =========================
+//        DETERMINE STATUS
+//     ========================== */
+
+//     let status = "partial";
+
+//     if (newTotalPaid >= invoice.total) {
+//       status = "paid";
+//     }
+
+//     /* =========================
+//        GENERATE PAYMENT NUMBER
+//     ========================== */
+
+//     const paymentNumber =
+//       "PAY-" + Date.now().toString().slice(-6);
+
+//     /* =========================
+//        INSERT PAYMENT
+//     ========================== */
+
+//     await conn.query(
+//       `INSERT INTO zv_payments
+//       (
+//         customer_id,
+//         invoice_id,
+//         amount,
+//         currency,
+//         exchange_rate,
+//         amount_usd,
+//         payment_date,
+//         payment_mode,
+//         reference,
+//         notes,
+//         payment_number,
+//         status,
+//         created_by
+//       )
+//       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+//       [
+//         customer_id,
+//         invoice_id,
+//         amount,
+//         currency,
+//         exchangeRate,
+//         amountUSD,
+//         payment_date,
+//         payment_mode,
+//         reference,
+//         notes,
+//         paymentNumber,
+//         status,
+//         userId
+//       ]
+//     );
+
+//     /* =========================
+//        UPDATE INVOICE
+//     ========================== */
+
+//     await conn.query(
+//       `UPDATE zv_invoices SET
+//         total_paid = ?,
+//         balance_due = ?,
+//         status = ?
+//       WHERE id = ?`,
+//       [
+//         newTotalPaid,
+//         balanceDue < 0 ? 0 : balanceDue,
+//         status,
+//         invoice_id
+//       ]
+//     );
+
+//     await conn.commit();
+
+//     res.json({
+//       success:true,
+//       message:"Payment recorded successfully"
+//     });
+
+//   } catch (error) {
+
+//     await conn.rollback();
+
+//     res.status(500).json({
+//       success:false,
+//       message:error.message
+//     });
+
+//   } finally {
+
+//     conn.release();
+
+//   }
+
+// };
 
 
 exports.getAllPayments = async (req, res) => {

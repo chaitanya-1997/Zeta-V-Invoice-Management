@@ -114,6 +114,7 @@ const quoteRoutes = require("./routes/quoteRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymtentRoutes = require("./routes/paymentRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/items", itemRoutes);
@@ -125,6 +126,7 @@ app.use("/api", quoteRoutes);
 app.use("/api", invoiceRoutes);
 app.use("/api", paymtentRoutes);
 app.use("/api", settingsRoutes);
+app.use("/api", dashboardRoutes);
 
 // ✅ Health check route (VERY IMPORTANT for Azure)
 app.get("/", (req, res) => {
