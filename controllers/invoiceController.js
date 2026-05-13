@@ -653,36 +653,120 @@ exports.createInvoice = async (req, res) => {
 };
 
 
+// exports.getAllInvoices = async (req, res) => {
+//   try {
+//     await db.promise().query(`
+//       UPDATE zv_invoices SET status = 'overdue'
+//       WHERE due_date < CURDATE() AND status NOT IN ('paid','cancelled','overdue')
+//     `);
+
+//     const [rows] = await db.promise().query(`
+//       SELECT
+//         i.id, i.invoice_number,
+//         c.name AS customer_name, c.company_name AS customer_company,
+//         c.currency AS customer_currency, c.id AS customer_id,
+//         sa.city  AS company_addr_city,
+//         sa.country AS company_addr_country,
+//         bd.bank_name, bd.account_number AS bank_account_number,
+//         i.reference, i.invoice_date, i.due_date,
+//         i.subtotal, i.total, i.status, i.created_at,
+//         i.total_paid, i.balance_due
+//       FROM zv_invoices i
+//       JOIN zv_customers c ON c.id = i.customer_id
+//       LEFT JOIN zv_company_addresses sa ON sa.id = i.address_id
+//       LEFT JOIN zv_bank_details bd ON bd.id = i.bank_detail_id
+//       ORDER BY i.created_at DESC
+//     `);
+
+//     res.json({ success: true, total: rows.length, data: rows });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
 exports.getAllInvoices = async (req, res) => {
   try {
+
+    // ✅ Auto mark overdue
     await db.promise().query(`
-      UPDATE zv_invoices SET status = 'overdue'
-      WHERE due_date < CURDATE() AND status NOT IN ('paid','cancelled','overdue')
+      UPDATE zv_invoices
+      SET status = 'overdue'
+      WHERE due_date < CURDATE()
+      AND status NOT IN ('paid','cancelled','overdue')
     `);
 
+    // ✅ Get invoices
     const [rows] = await db.promise().query(`
       SELECT
-        i.id, i.invoice_number,
-        c.name AS customer_name, c.company_name AS customer_company,
-        c.currency AS customer_currency, c.id AS customer_id,
-        sa.city  AS company_addr_city,
+        i.id,
+        i.invoice_number,
+
+        -- Customer
+        c.name AS customer_name,
+        c.company_name AS customer_company,
+        c.currency AS customer_currency,
+        c.id AS customer_id,
+
+        -- ✅ Customer Billing Country
+        ca.country AS customer_country,
+
+        -- Company Address
+        sa.city AS company_addr_city,
         sa.country AS company_addr_country,
-        bd.bank_name, bd.account_number AS bank_account_number,
-        i.reference, i.invoice_date, i.due_date,
-        i.subtotal, i.total, i.status, i.created_at,
-        i.total_paid, i.balance_due
+
+        -- Bank
+        bd.bank_name,
+        bd.account_number AS bank_account_number,
+
+        -- Invoice
+        i.reference,
+        i.invoice_date,
+        i.due_date,
+        i.subtotal,
+        i.total,
+        i.status,
+        i.created_at,
+        i.total_paid,
+        i.balance_due
+
       FROM zv_invoices i
-      JOIN zv_customers c ON c.id = i.customer_id
-      LEFT JOIN zv_company_addresses sa ON sa.id = i.address_id
-      LEFT JOIN zv_bank_details bd ON bd.id = i.bank_detail_id
+
+      JOIN zv_customers c
+        ON c.id = i.customer_id
+
+      -- ✅ Customer billing address
+      LEFT JOIN zv_customer_addresses ca
+        ON ca.customer_id = c.id
+       AND ca.address_type = 'billing'
+
+      -- Company Address
+      LEFT JOIN zv_company_addresses sa
+        ON sa.id = i.address_id
+
+      -- Bank
+      LEFT JOIN zv_bank_details bd
+        ON bd.id = i.bank_detail_id
+
       ORDER BY i.created_at DESC
     `);
 
-    res.json({ success: true, total: rows.length, data: rows });
+    res.json({
+      success: true,
+      total: rows.length,
+      data: rows
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
   }
 };
+
 
 exports.getInvoiceById = async (req, res) => {
   try {
