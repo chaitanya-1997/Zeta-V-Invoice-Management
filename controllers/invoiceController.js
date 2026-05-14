@@ -728,7 +728,8 @@ exports.getAllInvoices = async (req, res) => {
         i.status,
         i.created_at,
         i.total_paid,
-        i.balance_due
+        i.balance_due,
+        i.quote_number
 
       FROM zv_invoices i
 
@@ -768,20 +769,127 @@ exports.getAllInvoices = async (req, res) => {
 };
 
 
+// exports.getInvoiceById = async (req, res) => {
+//   try {
+//     const invoiceId = req.params.id;
+
+//     const [invoiceRows] = await db.promise().query(
+//       `SELECT
+//         i.*,
+//         c.name         AS customer_name,
+//         c.company_name AS customer_company,
+//         c.currency     AS customer_currency,
+//         p.id           AS project_id,
+//         p.name         AS project_name,
+//         p.code         AS project_code,
+//         p.status       AS project_status,
+//         -- Company Address
+//         sa.id          AS address_id,
+//         sa.label       AS company_address_label,
+//         sa.street      AS company_street,
+//         sa.city        AS company_city,
+//         sa.state       AS company_state,
+//         sa.zip         AS company_zip,
+//         sa.country     AS company_country,
+//         sa.phone       AS company_phone,
+//         sa.email       AS company_email,
+//         -- ✅ Bank Details
+//         bd.id           AS bank_detail_id,
+//         bd.bank_name    AS bank_name,
+//         bd.branch       AS bank_branch,
+//         bd.account_name AS bank_account_name,
+//         bd.account_number AS bank_account_number,
+//         bd.ifsc_code    AS bank_ifsc,
+//         bd.swift_code   AS bank_swift,
+//         bd.currency     AS bank_currency
+//       FROM zv_invoices i
+//       JOIN zv_customers c ON c.id = i.customer_id
+//       LEFT JOIN zv_projects p ON p.id = i.project_id
+//       LEFT JOIN zv_company_addresses sa ON sa.id = i.address_id
+//       LEFT JOIN zv_bank_details bd ON bd.id = i.bank_detail_id
+//       WHERE i.id = ?`,
+//       [invoiceId],
+//     );
+
+//     if (invoiceRows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Invoice not found" });
+//     }
+
+//     const [items] = await db.promise().query(
+//       `SELECT id, description, quantity, rate, amount, sort_order
+//        FROM zv_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC`,
+//       [invoiceId],
+//     );
+
+//     const [gstLines] = await db.promise().query(
+//       `SELECT id, gst_type, rate, is_custom, gst_amount, sort_order
+//        FROM zv_invoice_gst_lines WHERE invoice_id = ? ORDER BY sort_order ASC`,
+//       [invoiceId],
+//     );
+
+//     const invoice = invoiceRows[0];
+
+//     res.json({
+//       success: true,
+//       data: {
+//         invoice,
+//         project: invoice.project_id
+//           ? {
+//               id: invoice.project_id,
+//               name: invoice.project_name,
+//               code: invoice.project_code,
+//               status: invoice.project_status,
+//             }
+//           : null,
+//         // ✅ Clean bank details object
+//         bankDetail: invoice.bank_detail_id
+//           ? {
+//               id: invoice.bank_detail_id,
+//               bankName: invoice.bank_name,
+//               branch: invoice.bank_branch,
+//               accountName: invoice.bank_account_name,
+//               accountNumber: invoice.bank_account_number,
+//               ifscCode: invoice.bank_ifsc,
+//               swiftCode: invoice.bank_swift,
+//               currency: invoice.bank_currency,
+//             }
+//           : null,
+//         items,
+//         gst_lines: gstLines,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
 exports.getInvoiceById = async (req, res) => {
   try {
+
     const invoiceId = req.params.id;
+
+    // =========================
+    // MAIN INVOICE
+    // =========================
 
     const [invoiceRows] = await db.promise().query(
       `SELECT
         i.*,
+
+        -- Customer
         c.name         AS customer_name,
         c.company_name AS customer_company,
         c.currency     AS customer_currency,
+
+        -- Project
         p.id           AS project_id,
         p.name         AS project_name,
         p.code         AS project_code,
         p.status       AS project_status,
+
         -- Company Address
         sa.id          AS address_id,
         sa.label       AS company_address_label,
@@ -792,48 +900,131 @@ exports.getInvoiceById = async (req, res) => {
         sa.country     AS company_country,
         sa.phone       AS company_phone,
         sa.email       AS company_email,
-        -- ✅ Bank Details
-        bd.id           AS bank_detail_id,
-        bd.bank_name    AS bank_name,
-        bd.branch       AS bank_branch,
-        bd.account_name AS bank_account_name,
+
+        -- Bank
+        bd.id             AS bank_detail_id,
+        bd.bank_name      AS bank_name,
+        bd.branch         AS bank_branch,
+        bd.account_name   AS bank_account_name,
         bd.account_number AS bank_account_number,
-        bd.ifsc_code    AS bank_ifsc,
-        bd.swift_code   AS bank_swift,
-        bd.currency     AS bank_currency
+        bd.ifsc_code      AS bank_ifsc,
+        bd.swift_code     AS bank_swift,
+        bd.currency       AS bank_currency
+
       FROM zv_invoices i
-      JOIN zv_customers c ON c.id = i.customer_id
-      LEFT JOIN zv_projects p ON p.id = i.project_id
-      LEFT JOIN zv_company_addresses sa ON sa.id = i.address_id
-      LEFT JOIN zv_bank_details bd ON bd.id = i.bank_detail_id
+
+      JOIN zv_customers c
+        ON c.id = i.customer_id
+
+      LEFT JOIN zv_projects p
+        ON p.id = i.project_id
+
+      LEFT JOIN zv_company_addresses sa
+        ON sa.id = i.address_id
+
+      LEFT JOIN zv_bank_details bd
+        ON bd.id = i.bank_detail_id
+
       WHERE i.id = ?`,
-      [invoiceId],
+      [invoiceId]
     );
 
     if (invoiceRows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Invoice not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found"
+      });
     }
-
-    const [items] = await db.promise().query(
-      `SELECT id, description, quantity, rate, amount, sort_order
-       FROM zv_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC`,
-      [invoiceId],
-    );
-
-    const [gstLines] = await db.promise().query(
-      `SELECT id, gst_type, rate, is_custom, gst_amount, sort_order
-       FROM zv_invoice_gst_lines WHERE invoice_id = ? ORDER BY sort_order ASC`,
-      [invoiceId],
-    );
 
     const invoice = invoiceRows[0];
 
+    // =========================
+    // ITEMS
+    // =========================
+
+    const [items] = await db.promise().query(
+      `
+      SELECT
+        id,
+        description,
+        quantity,
+        rate,
+        amount,
+        sort_order
+      FROM zv_invoice_items
+      WHERE invoice_id = ?
+      ORDER BY sort_order ASC
+      `,
+      [invoiceId]
+    );
+
+    // =========================
+    // GST
+    // =========================
+
+    const [gstLines] = await db.promise().query(
+      `
+      SELECT
+        id,
+        gst_type,
+        rate,
+        is_custom,
+        gst_amount,
+        sort_order
+      FROM zv_invoice_gst_lines
+      WHERE invoice_id = ?
+      ORDER BY sort_order ASC
+      `,
+      [invoiceId]
+    );
+
+    // =========================
+    // CUSTOMER ADDRESSES
+    // =========================
+
+    const [addressRows] = await db.promise().query(
+      `
+      SELECT
+        address_type,
+        country,
+        address,
+        city,
+        state,
+        pincode,
+        fax,
+        work_phone,
+        mobile
+      FROM zv_customer_addresses
+      WHERE customer_id = ?
+      `,
+      [invoice.customer_id]
+    );
+
+    // =========================
+    // BILLING / SHIPPING
+    // =========================
+
+    const billingAddress =
+      addressRows.find(
+        (a) => a.address_type === "billing"
+      ) || null;
+
+    const shippingAddress =
+      addressRows.find(
+        (a) => a.address_type === "shipping"
+      ) || null;
+
+    // =========================
+    // RESPONSE
+    // =========================
+
     res.json({
       success: true,
+
       data: {
+
         invoice,
+
         project: invoice.project_id
           ? {
               id: invoice.project_id,
@@ -842,7 +1033,14 @@ exports.getInvoiceById = async (req, res) => {
               status: invoice.project_status,
             }
           : null,
-        // ✅ Clean bank details object
+
+        // ✅ Billing Address
+        billingAddress,
+
+        // ✅ Shipping Address
+        shippingAddress,
+
+        // ✅ Bank Details
         bankDetail: invoice.bank_detail_id
           ? {
               id: invoice.bank_detail_id,
@@ -855,14 +1053,24 @@ exports.getInvoiceById = async (req, res) => {
               currency: invoice.bank_currency,
             }
           : null,
+
         items,
+
         gst_lines: gstLines,
+
       },
     });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
   }
 };
+
 
 // exports.updateInvoice = async (req, res) => {
 //   const conn = await db.promise().getConnection();
