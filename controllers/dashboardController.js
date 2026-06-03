@@ -42,3 +42,104 @@ exports.getInvoiceStatusCounts = async (req, res) => {
   }
 
 };
+
+
+exports.getTotalRevenue = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        COUNT(*) AS totalInvoices,
+        COALESCE(SUM(total_usd),0) AS totalRevenueUSD,
+        COALESCE(SUM(balance_due),0) AS totalOutstanding
+      FROM zv_invoices
+    `);
+
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+// exports.getRevenueByCountry = async (req, res) => {
+//   try {
+//     const [rows] = await db.promise().query(`
+//       SELECT
+//         currency_code,
+//         COUNT(*) AS invoiceCount,
+//         SUM(total) AS revenue
+//       FROM zv_invoices
+//       GROUP BY currency_code
+//       ORDER BY revenue DESC
+//     `);
+
+//     res.json({
+//       success: true,
+//       data: rows
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// };
+
+
+exports.getRevenueByCountry = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        DATE_FORMAT(invoice_date, '%Y-%m') AS month,
+        currency_code,
+        COUNT(*) AS invoiceCount,
+        SUM(total) AS revenue
+      FROM zv_invoices
+      GROUP BY DATE_FORMAT(invoice_date, '%Y-%m'), currency_code
+      ORDER BY month ASC, revenue DESC
+    `);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.getMonthlyRevenue = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        DATE_FORMAT(invoice_date,'%Y-%m') AS month,
+        SUM(total_usd) AS revenueUSD
+      FROM zv_invoices
+      GROUP BY DATE_FORMAT(invoice_date,'%Y-%m')
+      ORDER BY month ASC
+    `);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

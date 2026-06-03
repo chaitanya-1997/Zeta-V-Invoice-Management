@@ -15,6 +15,13 @@ router.post(
 
 router.get("/customers", verifyToken, customerController.getCustomers);
 
+
+router.get(
+  "/customers/:id",
+  verifyToken,
+  customerController.getCustomerById
+);
+
 router.put(
   "/customers/:id",
   verifyToken,

@@ -11,4 +11,22 @@ router.get(
   dashboardController.getInvoiceStatusCounts
 );
 
+router.get(
+  "/dashboard/total-revenue",
+  verifyToken,
+  dashboardController.getTotalRevenue
+);
+
+router.get(
+  "/dashboard/revenue-by-country",
+  verifyToken,
+  dashboardController.getRevenueByCountry
+);
+
+router.get(
+  "/dashboard/monthly-revenue",
+  verifyToken,
+  dashboardController.getMonthlyRevenue
+);
+
 module.exports = router;

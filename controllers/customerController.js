@@ -262,6 +262,219 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
+exports.getCustomerById = async (req, res) => {
+  try {
+
+    const customerId = req.params.id;
+
+    // =========================
+    // CUSTOMER
+    // =========================
+
+    const [customers] = await db.promise().query(
+      `
+      SELECT *
+      FROM zv_customers
+      WHERE id = ?
+      `,
+      [customerId]
+    );
+
+    if (customers.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found"
+      });
+    }
+
+    const customer = customers[0];
+
+    // =========================
+    // ADDRESSES
+    // =========================
+
+    const [addresses] = await db.promise().query(
+      `
+      SELECT *
+      FROM zv_customer_addresses
+      WHERE customer_id = ?
+      `,
+      [customerId]
+    );
+
+    const billingAddress = addresses.find(
+      (a) => a.address_type === "billing"
+    );
+
+    const shippingAddress = addresses.find(
+      (a) => a.address_type === "shipping"
+    );
+
+    // =========================
+    // CONTACTS
+    // =========================
+
+    const [contacts] = await db.promise().query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        work_phone AS workPhone,
+        mobile
+      FROM zv_customer_contacts
+      WHERE customer_id = ?
+      `,
+      [customerId]
+    );
+
+    // =========================
+    // DOCUMENTS
+    // =========================
+
+    const [documents] = await db.promise().query(
+      `
+      SELECT
+        id,
+        file_name,
+        file_path
+      FROM zv_customer_documents
+      WHERE customer_id = ?
+      `,
+      [customerId]
+    );
+
+    // =========================
+    // INVOICES
+    // =========================
+
+    const [invoices] = await db.promise().query(
+      `
+      SELECT
+        id,
+        invoice_number,
+        invoice_date,
+        due_date,
+        subtotal,
+        total,
+        total_paid,
+        balance_due,
+        status,
+        created_at
+      FROM zv_invoices
+      WHERE customer_id = ?
+      ORDER BY created_at DESC
+      `,
+      [customerId]
+    );
+
+    // =========================
+    // PAYMENTS
+    // =========================
+
+    const [payments] = await db.promise().query(
+      `
+      SELECT
+        p.id,
+        p.payment_number,
+        p.payment_date,
+        p.amount,
+        p.payment_mode,
+        p.reference,
+        p.notes,
+        p.status,
+
+        i.invoice_number
+
+      FROM zv_payments p
+
+      LEFT JOIN zv_invoices i
+        ON i.id = p.invoice_id
+
+      WHERE p.customer_id = ?
+
+      ORDER BY p.payment_date DESC
+      `,
+      [customerId]
+    );
+
+    // =========================
+    // RESPONSE
+    // =========================
+
+    res.json({
+      success: true,
+
+      data: {
+
+        // CUSTOMER DETAILS
+        customer: {
+          id: customer.id,
+          customerType: customer.customer_type,
+          name: customer.name,
+          companyName: customer.company_name,
+          email: customer.email,
+          phone: customer.phone,
+          currency: customer.currency,
+          panNumber: customer.pan_number,
+          paymentTerms: customer.payment_terms,
+          remarks: customer.remarks,
+          createdAt: customer.created_at,
+          updatedAt: customer.updated_at,
+        },
+
+        // ADDRESSES
+        billingAddress: billingAddress
+          ? {
+              country: billingAddress.country,
+              address: billingAddress.address,
+              city: billingAddress.city,
+              state: billingAddress.state,
+              pincode: billingAddress.pincode,
+              fax: billingAddress.fax,
+              workPhone: billingAddress.work_phone,
+              mobile: billingAddress.mobile,
+            }
+          : null,
+
+        shippingAddress: shippingAddress
+          ? {
+              country: shippingAddress.country,
+              address: shippingAddress.address,
+              city: shippingAddress.city,
+              state: shippingAddress.state,
+              pincode: shippingAddress.pincode,
+              fax: shippingAddress.fax,
+              workPhone: shippingAddress.work_phone,
+              mobile: shippingAddress.mobile,
+            }
+          : null,
+
+        // CONTACTS
+        contacts,
+
+        // DOCUMENTS
+        documents,
+
+        // CUSTOMER INVOICES
+        invoices,
+
+        // CUSTOMER PAYMENTS
+        payments,
+
+      },
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
 exports.updateCustomer = async (req, res) => {
   const connection = await db.promise().getConnection();
   try {
@@ -472,3 +685,4 @@ exports.deleteCustomer = async (req, res) => {
     connection.release();
   }
 };
+
