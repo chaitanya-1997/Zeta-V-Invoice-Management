@@ -4,6 +4,8 @@ const hrAuthMiddleware = require("../../middleware/hrmiddleware/hrAuthMiddleware
 const uploadCandidateResume = require("../../middleware/hrmiddleware/uploadCandidateResume");
 const hrCandidateController = require("../../controllers/hrcontrollers/hrCandidateController");
 
+
+
 // ── CANDIDATE CRUD ──
 router.post(
   "/",
@@ -99,5 +101,9 @@ router.get(
   hrAuthMiddleware,
   hrCandidateController.getSavedCandidatesByHR
 );
+
+
+router.get("/dashboard/stats", hrAuthMiddleware, hrCandidateController.getDashboardStats);
+
 
 module.exports = router;

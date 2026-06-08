@@ -126,12 +126,13 @@ const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymtentRoutes = require("./routes/paymentRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-
-
+const hrTeamRoutes = require("./routes/hrroutes/hrTeamRoutes");
+const hrInterviewRoutes = require("./routes/hrroutes/hrInterviewRoutes");
 // hr Routes
 const hrRoutes = require("./routes/hrroutes/hrRoutes")
 const hrCandidateRoutes = require("./routes/hrroutes/hrCandidateRoutes"); 
 const hrJobRoutes = require("./routes/hrroutes/hrJobRoutes");
+const hrProfileRoutes = require("./routes/hrroutes/hrProfileRoutes");
 
 // invoice-apis/routes/authRoutes.js
 app.use("/api/auth", authRoutes);
@@ -151,9 +152,12 @@ app.use("/api", dashboardRoutes);
 app.use("/api/hr", hrRoutes);
 app.use("/api/hr/candidates", hrCandidateRoutes);
 app.use("/api/hr", hrJobRoutes);
+app.use("/api/hr", hrTeamRoutes);
+app.use("/api/hr", hrInterviewRoutes);
+app.use("/api/hr", hrProfileRoutes);
 // ── Static Files ──
 app.use("/uploads", express.static("uploads"));
-
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ Health check route
 app.get("/", (req, res) => {

@@ -1,3 +1,5 @@
+
+
 const jobModel = require("../../models/hrmodels/hrJobModel");
 
 exports.createJob = async (req, res) => {
@@ -7,6 +9,8 @@ exports.createJob = async (req, res) => {
       department,
       job_type,
       experience_level,
+      required_experience,
+      shift_timings,
       openings,
       location,
       work_mode,
@@ -21,6 +25,7 @@ exports.createJob = async (req, res) => {
       benefits,
     } = req.body;
 
+    // Validation
     if (!title) {
       return res.status(400).json({
         success: false,
@@ -33,6 +38,8 @@ exports.createJob = async (req, res) => {
       department,
       job_type,
       experience_level,
+      required_experience: required_experience || null,
+      shift_timings: shift_timings || null,
       openings: openings || 1,
       location,
       work_mode,
@@ -48,7 +55,6 @@ exports.createJob = async (req, res) => {
     jobModel.createJob(jobData, (err, result) => {
       if (err) {
         console.error(err);
-
         return res.status(500).json({
           success: false,
           message: "Error creating job",
@@ -57,6 +63,7 @@ exports.createJob = async (req, res) => {
       }
 
       const jobId = result.insertId;
+      const jrId = result.jr_id;
 
       // Skills
       if (skills && Array.isArray(skills)) {
@@ -65,7 +72,7 @@ exports.createJob = async (req, res) => {
         });
       }
 
-      // Requirements
+      // Requirements (Good to Have)
       if (requirements && Array.isArray(requirements)) {
         requirements.forEach((requirement) => {
           jobModel.addRequirement(jobId, requirement);
@@ -83,11 +90,11 @@ exports.createJob = async (req, res) => {
         success: true,
         message: "Job created successfully",
         job_id: jobId,
+        jr_id: jrId,
       });
     });
   } catch (error) {
     console.error(error);
-
     return res.status(500).json({
       success: false,
       message: "Server Error",
@@ -110,7 +117,7 @@ exports.getAllJobs = async (req, res) => {
       return res.status(200).json({
         success: true,
         count: jobs.length,
-        jobs,
+        jobs: jobs,
       });
     });
   } catch (error) {
@@ -143,7 +150,7 @@ exports.getJobById = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        job,
+        data: job,
       });
     });
   } catch (error) {
@@ -154,7 +161,6 @@ exports.getJobById = async (req, res) => {
   }
 };
 
-
 exports.updateJob = async (req, res) => {
   try {
     const { id } = req.params;
@@ -164,6 +170,8 @@ exports.updateJob = async (req, res) => {
       department,
       job_type,
       experience_level,
+      required_experience,
+      shift_timings,
       openings,
       location,
       work_mode,
@@ -183,6 +191,8 @@ exports.updateJob = async (req, res) => {
       department,
       job_type,
       experience_level,
+      required_experience: required_experience || null,
+      shift_timings: shift_timings || null,
       openings,
       location,
       work_mode,
@@ -215,7 +225,7 @@ exports.updateJob = async (req, res) => {
         });
       }
 
-      // Insert new requirements
+      // Insert new requirements (Good to Have)
       if (requirements?.length) {
         requirements.forEach((req) => {
           jobModel.addRequirement(id, req);
@@ -242,17 +252,25 @@ exports.updateJob = async (req, res) => {
   }
 };
 
-
+// UPDATED DELETE - Actually deletes the job
 exports.deleteJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    jobModel.deleteJob(id, (err, result) => {
+    jobModel.deleteJobPermanently(id, (err, result) => {
       if (err) {
+        console.error("Delete error:", err);
         return res.status(500).json({
           success: false,
           message: "Error deleting job",
           error: err.message,
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Job not found",
         });
       }
 
@@ -262,13 +280,13 @@ exports.deleteJob = async (req, res) => {
       });
     });
   } catch (error) {
+    console.error("Delete error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
-
 
 exports.pauseJob = async (req, res) => {
   try {
@@ -295,7 +313,6 @@ exports.pauseJob = async (req, res) => {
     });
   }
 };
-
 
 exports.resumeJob = async (req, res) => {
   try {
