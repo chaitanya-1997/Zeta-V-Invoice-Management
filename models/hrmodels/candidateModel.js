@@ -407,6 +407,257 @@
 const db = require("../../config/db");
 
 // ── CREATE CANDIDATE ──
+// const createCandidate = (candidateData, callback) => {
+//   const {
+//     first_name,
+//     last_name,
+//     email,
+//     phone,
+//     headline,
+//     location,
+//     experience_years,
+//     relevant_experience_years,
+//     current_company,
+//     current_salary,
+//     expected_salary,
+//     source,
+//     education,
+//     avatar,
+//     resume_file_name,
+//     resume_url,
+//     status,
+//     created_by,
+//   } = candidateData;
+
+//   const sql = `
+//     INSERT INTO candidates (
+//       first_name,
+//       last_name,
+//       email,
+//       phone,
+//       headline,
+//       location,
+//       experience_years,
+//       relevant_experience_years,
+//       current_company,
+//       current_salary,
+//       expected_salary,
+//       source,
+//       education,
+//       avatar,
+//       resume_file_name,
+//       resume_url,
+//       status,
+//       created_by,
+//       applied_at
+//     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+//   `;
+
+//   db.query(
+//     sql,
+//     [
+//       first_name,
+//       last_name,
+//       email,
+//       phone,
+//       headline,
+//       location,
+//       experience_years,
+//       relevant_experience_years ?? null,
+//       current_company,
+//       current_salary ?? null,
+//       expected_salary ?? null,
+//       source,
+//       education,
+//       avatar,
+//       resume_file_name,
+//       resume_url,
+//       status,
+//       created_by,
+//     ],
+//     callback
+//   );
+// };
+
+// // ── GET CANDIDATE BY ID ──
+// const getCandidateById = (candidateId, callback) => {
+//   const sql = `
+//     SELECT c.*,
+//            GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+//     FROM candidates c
+//     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+//     WHERE c.id = ?
+//     GROUP BY c.id
+//   `;
+//   db.query(sql, [candidateId], callback);
+// };
+
+// // ── GET ALL CANDIDATES ──
+// const getAllCandidates = (filter = {}, callback) => {
+//   let sql = `
+//     SELECT c.*,
+//            GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+//     FROM candidates c
+//     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+//     WHERE 1=1
+//   `;
+
+//   const params = [];
+
+//   if (filter.status && filter.status !== "all") {
+//     sql += ` AND c.status = ?`;
+//     params.push(filter.status);
+//   }
+
+//   if (filter.source) {
+//     sql += ` AND c.source = ?`;
+//     params.push(filter.source);
+//   }
+
+//   if (filter.location) {
+//     sql += ` AND c.location LIKE ?`;
+//     params.push(`%${filter.location}%`);
+//   }
+
+//   if (filter.search) {
+//     sql += ` AND (
+//       c.first_name   LIKE ? OR
+//       c.last_name    LIKE ? OR
+//       c.email        LIKE ? OR
+//       c.headline     LIKE ? OR
+//       c.current_company LIKE ? OR
+//       cs.skill_name  LIKE ?
+//     )`;
+//     const t = `%${filter.search}%`;
+//     params.push(t, t, t, t, t, t);
+//   }
+
+//   if (filter.created_by) {
+//     sql += ` AND c.created_by = ?`;
+//     params.push(filter.created_by);
+//   }
+
+//   if (filter.is_saved !== undefined) {
+//     sql += ` AND c.is_saved = ?`;
+//     params.push(filter.is_saved);
+//   }
+
+//   // Experience range filters
+//   if (filter.expMin !== undefined && filter.expMin !== "") {
+//     sql += ` AND c.experience_years >= ?`;
+//     params.push(Number(filter.expMin));
+//   }
+//   if (filter.expMax !== undefined && filter.expMax !== "") {
+//     sql += ` AND c.experience_years <= ?`;
+//     params.push(Number(filter.expMax));
+//   }
+//   if (filter.relExpMin !== undefined && filter.relExpMin !== "") {
+//     sql += ` AND c.relevant_experience_years >= ?`;
+//     params.push(Number(filter.relExpMin));
+//   }
+//   if (filter.relExpMax !== undefined && filter.relExpMax !== "") {
+//     sql += ` AND c.relevant_experience_years <= ?`;
+//     params.push(Number(filter.relExpMax));
+//   }
+
+//   // Qualification filter
+//   if (filter.qualification) {
+//     sql += ` AND c.education LIKE ?`;
+//     params.push(`%${filter.qualification}%`);
+//   }
+
+//   sql += ` GROUP BY c.id`;
+
+//   switch (filter.sortBy) {
+//     case "experience": sql += ` ORDER BY c.experience_years DESC`;  break;
+//     case "salary":     sql += ` ORDER BY c.expected_salary DESC`;   break;
+//     default:           sql += ` ORDER BY c.applied_at DESC`;
+//   }
+
+//   if (filter.limit && filter.offset !== undefined) {
+//     sql += ` LIMIT ? OFFSET ?`;
+//     params.push(filter.limit, filter.offset);
+//   }
+
+//   db.query(sql, params, callback);
+// };
+
+// // ── UPDATE CANDIDATE ──
+// // ── UPDATE CANDIDATE ──
+// const updateCandidate = (candidateId, updateData, callback) => {
+//   const fields = [];
+//   const values = [];
+
+//   // Whitelist of updatable columns
+//   const allowed = [
+//     "first_name",
+//     "last_name",
+//     "phone",
+//     "headline",
+//     "location",
+//     "experience_years",
+//     "relevant_experience_years",
+//     "current_company",
+//     "current_salary",
+//     "expected_salary",
+//     "source",
+//     "education",
+//     "avatar",
+//     "resume_file_name",
+//     "resume_url",
+//     "status",
+//   ];
+
+//   // Numeric nullable columns — store null when empty/undefined
+//   const numericNullable = [
+//     "experience_years",
+//     "relevant_experience_years",
+//     "current_salary",
+//     "expected_salary",
+//   ];
+
+//   for (const key of allowed) {
+//     // Only skip if key is completely absent from updateData object
+//     if (!(key in updateData)) continue;
+
+//     const raw = updateData[key];
+
+//     if (numericNullable.includes(key)) {
+//       // Convert to number; store null if blank/invalid
+//       if (raw === "" || raw === null || raw === undefined) {
+//         fields.push(`${key} = ?`);
+//         values.push(null);
+//       } else {
+//         const n = Number(raw);
+//         fields.push(`${key} = ?`);
+//         values.push(isNaN(n) ? null : n);
+//       }
+//     } else {
+//       // For string fields: allow empty string (user may clear a field)
+//       fields.push(`${key} = ?`);
+//       values.push(raw ?? null);
+//     }
+//   }
+
+//   if (fields.length === 0) {
+//     return callback(new Error("No fields to update"), null);
+//   }
+
+//   fields.push(`updated_at = NOW()`);
+//   values.push(candidateId);
+
+//   const sql = `UPDATE candidates SET ${fields.join(", ")} WHERE id = ?`;
+
+//   console.log("Update SQL:", sql);
+//   console.log("Update Values:", values);
+
+//   db.query(sql, values, callback);
+// };
+
+
+
+
+// ── CREATE CANDIDATE ──
 const createCandidate = (candidateData, callback) => {
   const {
     first_name,
@@ -421,6 +672,7 @@ const createCandidate = (candidateData, callback) => {
     current_salary,
     expected_salary,
     source,
+    referral_person,
     education,
     avatar,
     resume_file_name,
@@ -443,6 +695,7 @@ const createCandidate = (candidateData, callback) => {
       current_salary,
       expected_salary,
       source,
+      referral_person,
       education,
       avatar,
       resume_file_name,
@@ -450,7 +703,7 @@ const createCandidate = (candidateData, callback) => {
       status,
       created_by,
       applied_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
   `;
 
   db.query(
@@ -468,6 +721,7 @@ const createCandidate = (candidateData, callback) => {
       current_salary ?? null,
       expected_salary ?? null,
       source,
+      referral_person || null,
       education,
       avatar,
       resume_file_name,
@@ -583,7 +837,6 @@ const getAllCandidates = (filter = {}, callback) => {
 };
 
 // ── UPDATE CANDIDATE ──
-// ── UPDATE CANDIDATE ──
 const updateCandidate = (candidateId, updateData, callback) => {
   const fields = [];
   const values = [];
@@ -601,6 +854,7 @@ const updateCandidate = (candidateId, updateData, callback) => {
     "current_salary",
     "expected_salary",
     "source",
+    "referral_person",
     "education",
     "avatar",
     "resume_file_name",
@@ -617,13 +871,11 @@ const updateCandidate = (candidateId, updateData, callback) => {
   ];
 
   for (const key of allowed) {
-    // Only skip if key is completely absent from updateData object
     if (!(key in updateData)) continue;
 
     const raw = updateData[key];
 
     if (numericNullable.includes(key)) {
-      // Convert to number; store null if blank/invalid
       if (raw === "" || raw === null || raw === undefined) {
         fields.push(`${key} = ?`);
         values.push(null);
@@ -633,7 +885,6 @@ const updateCandidate = (candidateId, updateData, callback) => {
         values.push(isNaN(n) ? null : n);
       }
     } else {
-      // For string fields: allow empty string (user may clear a field)
       fields.push(`${key} = ?`);
       values.push(raw ?? null);
     }
@@ -653,6 +904,11 @@ const updateCandidate = (candidateId, updateData, callback) => {
 
   db.query(sql, values, callback);
 };
+
+
+
+
+
 
 // ── DELETE CANDIDATE ──
 const deleteCandidate = (candidateId, callback) => {

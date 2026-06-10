@@ -475,6 +475,9 @@ exports.getCustomerById = async (req, res) => {
   }
 };
 
+
+
+
 exports.updateCustomer = async (req, res) => {
   const connection = await db.promise().getConnection();
   try {

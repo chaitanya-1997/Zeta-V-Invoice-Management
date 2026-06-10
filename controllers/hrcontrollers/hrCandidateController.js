@@ -949,6 +949,77 @@ function safeNum(val) {
 }
 
 // ── CREATE CANDIDATE ─────────────────────────────────────────────────────────
+// exports.createCandidate = async (req, res) => {
+//   try {
+//     const {
+//       first_name, last_name, email, phone,
+//       headline, location,
+//       experience_years, relevant_experience_years,
+//       current_company, current_salary, expected_salary,
+//       source, education, status,
+//     } = req.body;
+
+//     // Validation
+//     if (!first_name || !last_name || !email || !phone) {
+//       return res.status(400).json({ success: false, message: "First name, last name, email and phone are required." });
+//     }
+//     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+//       return res.status(400).json({ success: false, message: "Invalid email format." });
+//     }
+//     if (status && !VALID_STATUSES.includes(status)) {
+//       return res.status(400).json({ success: false, message: `Invalid status.` });
+//     }
+
+//     const skills = parseSkills(req.body.skills);
+
+//     const candidateData = {
+//       first_name:                 first_name.trim(),
+//       last_name:                  last_name.trim(),
+//       email:                      email.trim(),
+//       phone:                      phone.trim(),
+//       headline:                   headline?.trim() || "",
+//       location:                   location?.trim() || "",
+//       experience_years:           safeNum(experience_years),
+//       relevant_experience_years:  safeNum(relevant_experience_years),
+//       current_company:            current_company?.trim() || "",
+//       current_salary:             safeNum(current_salary),
+//       expected_salary:            safeNum(expected_salary),
+//       source:                     source || "Direct",
+//       education:                  education?.trim() || "",
+//       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(`${first_name} ${last_name}`)}&background=3b82f6&color=fff`,
+//       resume_file_name: req.file ? req.file.filename : null,
+//       resume_url:       req.file ? `/uploads/resumes/${req.file.filename}` : null,
+//       status:           status || "unscreened",
+//       created_by:       req.user?.id || null,
+//     };
+
+//     candidateModel.createCandidate(candidateData, (err, result) => {
+//       if (err) {
+//         console.error("Create Candidate Error:", err);
+//         return res.status(500).json({ success: false, message: "Error creating candidate", error: err.message });
+//       }
+
+//       const candidateId = result.insertId;
+
+//       // Insert skills
+//       skills.forEach(skillName => {
+//         candidateModel.addCandidateSkill(candidateId, skillName, null, err => {
+//           if (err) console.error("Skill Insert Error:", skillName, err);
+//         });
+//       });
+
+//       return res.status(201).json({
+//         success: true,
+//         message: "Candidate created successfully",
+//         candidate: { id: candidateId, ...candidateData, skills },
+//       });
+//     });
+//   } catch (error) {
+//     console.error("Create Candidate Error:", error);
+//     return res.status(500).json({ success: false, message: "Server error", error: error.message });
+//   }
+// };
+
 exports.createCandidate = async (req, res) => {
   try {
     const {
@@ -956,7 +1027,7 @@ exports.createCandidate = async (req, res) => {
       headline, location,
       experience_years, relevant_experience_years,
       current_company, current_salary, expected_salary,
-      source, education, status,
+      source, referral_person, education, status,
     } = req.body;
 
     // Validation
@@ -968,6 +1039,11 @@ exports.createCandidate = async (req, res) => {
     }
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, message: `Invalid status.` });
+    }
+    
+    // Validate referral_person if source is "Referral"
+    if (source === "Referral" && (!referral_person || !referral_person.trim())) {
+      return res.status(400).json({ success: false, message: "Referral person name is required when source is Referral." });
     }
 
     const skills = parseSkills(req.body.skills);
@@ -985,6 +1061,7 @@ exports.createCandidate = async (req, res) => {
       current_salary:             safeNum(current_salary),
       expected_salary:            safeNum(expected_salary),
       source:                     source || "Direct",
+      referral_person:            source === "Referral" ? (referral_person?.trim() || null) : null,
       education:                  education?.trim() || "",
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(`${first_name} ${last_name}`)}&background=3b82f6&color=fff`,
       resume_file_name: req.file ? req.file.filename : null,
@@ -1019,6 +1096,12 @@ exports.createCandidate = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
+
+
+
+
+
 
 // ── GET ALL CANDIDATES ───────────────────────────────────────────────────────
 exports.getAllCandidates = async (req, res) => {
@@ -1081,6 +1164,127 @@ exports.getCandidateById = async (req, res) => {
 };
 
 // ── UPDATE CANDIDATE ─────────────────────────────────────────────────────────
+// exports.updateCandidate = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const {
+//       first_name, last_name, phone,
+//       headline, location,
+//       experience_years, relevant_experience_years,
+//       current_company, current_salary, expected_salary,
+//       source, education, status,
+//     } = req.body;
+
+//     if (status && !VALID_STATUSES.includes(status)) {
+//       return res.status(400).json({ success: false, message: "Invalid status." });
+//     }
+
+//     // ✅ FIX: Use explicit key presence check via req.body directly
+//     // so empty strings are still included (user clearing a field)
+//     const body = req.body;
+//     const updateData = {};
+
+//     // String fields — include even if empty string
+//     const stringFields = [
+//       "first_name", "last_name", "phone",
+//       "headline", "location", "current_company",
+//       "education", "source", "status",
+//     ];
+//     for (const key of stringFields) {
+//       if (key in body) {
+//         updateData[key] = typeof body[key] === "string" ? body[key].trim() : body[key];
+//       }
+//     }
+
+//     // Numeric nullable fields — include even if empty (model will convert to null)
+//     const numericFields = [
+//       "experience_years", "relevant_experience_years",
+//       "current_salary", "expected_salary",
+//     ];
+//     for (const key of numericFields) {
+//       if (key in body) {
+//         updateData[key] = body[key]; // model handles null conversion
+//       }
+//     }
+
+//     // New resume file uploaded
+//     if (req.file) {
+//       updateData.resume_file_name = req.file.filename;
+//       updateData.resume_url       = `/uploads/resumes/${req.file.filename}`;
+//     }
+
+//     console.log("Update Data received:", updateData);
+
+//     // Regenerate avatar if name fields are present
+//     const needsAvatar = "first_name" in updateData || "last_name" in updateData;
+
+//     function doUpdate() {
+//       candidateModel.updateCandidate(id, updateData, (err) => {
+//         if (err) {
+//           console.error("Update Candidate Error:", err);
+//           return res.status(500).json({
+//             success: false,
+//             message: "Error updating candidate",
+//             error: err.message,
+//           });
+//         }
+
+//         // Re-sync skills if skills field was sent
+//         if ("skills" in body) {
+//           const skills = parseSkills(body.skills);
+//           candidateModel.deleteAllCandidateSkills(id, (delErr) => {
+//             if (delErr) console.error("Delete skills error:", delErr);
+//             skills.forEach(skillName => {
+//               candidateModel.addCandidateSkill(id, skillName, null, err => {
+//                 if (err) console.error("Skill re-insert error:", err);
+//               });
+//             });
+//           });
+//         }
+
+//         // Return updated candidate
+//         candidateModel.getCandidateById(id, (err, rows) => {
+//           if (err || !rows || !rows.length) {
+//             return res.status(200).json({
+//               success: true,
+//               message: "Candidate updated successfully",
+//             });
+//           }
+//           return res.status(200).json({
+//             success: true,
+//             message: "Candidate updated successfully",
+//             data: rows[0],
+//           });
+//         });
+//       });
+//     }
+
+//     if (needsAvatar) {
+//       // Fetch current record to fill in whichever name part wasn't sent
+//       candidateModel.getCandidateById(id, (err, rows) => {
+//         if (!err && rows && rows.length) {
+//           const fn = updateData.first_name ?? rows[0].first_name;
+//           const ln = updateData.last_name  ?? rows[0].last_name;
+//           updateData.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(`${fn} ${ln}`)}&background=3b82f6&color=fff`;
+//         }
+//         doUpdate();
+//       });
+//     } else {
+//       doUpdate();
+//     }
+
+//   } catch (error) {
+//     console.error("Update Candidate Error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
 exports.updateCandidate = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1090,19 +1294,22 @@ exports.updateCandidate = async (req, res) => {
       headline, location,
       experience_years, relevant_experience_years,
       current_company, current_salary, expected_salary,
-      source, education, status,
+      source, referral_person, education, status,
     } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status." });
     }
 
-    // ✅ FIX: Use explicit key presence check via req.body directly
-    // so empty strings are still included (user clearing a field)
+    // Validate referral_person if source is "Referral"
+    if (source === "Referral" && (!referral_person || !referral_person.trim())) {
+      return res.status(400).json({ success: false, message: "Referral person name is required when source is Referral." });
+    }
+
     const body = req.body;
     const updateData = {};
 
-    // String fields — include even if empty string
+    // String fields
     const stringFields = [
       "first_name", "last_name", "phone",
       "headline", "location", "current_company",
@@ -1114,14 +1321,25 @@ exports.updateCandidate = async (req, res) => {
       }
     }
 
-    // Numeric nullable fields — include even if empty (model will convert to null)
+    // Referral person field (only if source is Referral)
+    if ("source" in body) {
+      if (body.source === "Referral" && referral_person) {
+        updateData.referral_person = referral_person.trim();
+      } else if (body.source !== "Referral") {
+        updateData.referral_person = null;
+      }
+    } else if ("referral_person" in body && source === "Referral") {
+      updateData.referral_person = referral_person?.trim() || null;
+    }
+
+    // Numeric nullable fields
     const numericFields = [
       "experience_years", "relevant_experience_years",
       "current_salary", "expected_salary",
     ];
     for (const key of numericFields) {
       if (key in body) {
-        updateData[key] = body[key]; // model handles null conversion
+        updateData[key] = body[key];
       }
     }
 
@@ -1130,8 +1348,6 @@ exports.updateCandidate = async (req, res) => {
       updateData.resume_file_name = req.file.filename;
       updateData.resume_url       = `/uploads/resumes/${req.file.filename}`;
     }
-
-    console.log("Update Data received:", updateData);
 
     // Regenerate avatar if name fields are present
     const needsAvatar = "first_name" in updateData || "last_name" in updateData;
@@ -1160,7 +1376,6 @@ exports.updateCandidate = async (req, res) => {
           });
         }
 
-        // Return updated candidate
         candidateModel.getCandidateById(id, (err, rows) => {
           if (err || !rows || !rows.length) {
             return res.status(200).json({
@@ -1178,7 +1393,6 @@ exports.updateCandidate = async (req, res) => {
     }
 
     if (needsAvatar) {
-      // Fetch current record to fill in whichever name part wasn't sent
       candidateModel.getCandidateById(id, (err, rows) => {
         if (!err && rows && rows.length) {
           const fn = updateData.first_name ?? rows[0].first_name;
@@ -1200,6 +1414,8 @@ exports.updateCandidate = async (req, res) => {
     });
   }
 };
+
+
 
 // ── UPDATE CANDIDATE STATUS ──────────────────────────────────────────────────
 exports.updateCandidateStatus = async (req, res) => {
