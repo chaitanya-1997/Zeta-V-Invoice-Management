@@ -187,6 +187,63 @@ const resumeJob = (jobId, callback) => {
   db.query(sql, [jobId], callback);
 };
 
+// Get candidate count for a specific job
+const getCandidateCountByJobId = (jobId, callback) => {
+  const sql = `
+    SELECT COUNT(*) as total_applications
+    FROM candidates
+    WHERE applied_job_id = ?
+  `;
+  db.query(sql, [jobId], callback);
+};
+
+// Get candidates who applied for a specific job
+const getCandidatesByJobId = (jobId, callback) => {
+  const sql = `
+    SELECT 
+      c.id,
+      c.first_name,
+      c.last_name,
+      c.email,
+      c.phone,
+      c.headline,
+      c.experience_years,
+      c.relevant_experience_years,
+      c.current_company,
+      c.current_designation,
+      c.expected_salary,
+      c.location,
+      c.status,
+      c.avatar,
+      c.applied_at,
+      GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+    FROM candidates c
+    LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+    WHERE c.applied_job_id = ?
+    GROUP BY c.id
+    ORDER BY c.applied_at DESC
+  `;
+  db.query(sql, [jobId], callback);
+};
+
+// Get candidate count for all jobs
+const getCandidateCountForAllJobs = (callback) => {
+  const sql = `
+    SELECT 
+      j.id,
+      j.title,
+      j.jr_id,
+      COUNT(c.id) as total_applications
+    FROM jobs j
+    LEFT JOIN candidates c ON c.applied_job_id = j.id
+    GROUP BY j.id
+    ORDER BY total_applications DESC
+  `;
+  db.query(sql, callback);
+};
+
+
+
 module.exports = {
   createJob,
   addSkill,
@@ -200,5 +257,8 @@ module.exports = {
   deleteJobRequirements,
   deleteJobBenefits,
   pauseJob,
-  resumeJob
+  resumeJob,
+  getCandidateCountByJobId,
+  getCandidatesByJobId,
+  getCandidateCountForAllJobs,
 };

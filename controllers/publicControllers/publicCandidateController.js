@@ -1,10 +1,4 @@
-// 
 
-
-
-
-
-// controllers/publicControllers/publicCandidateController.js
 
 const db = require("../../config/db");
 
@@ -109,6 +103,7 @@ exports.publicCreateCandidate = async (req, res) => {
       linkedin_url: linkedin_url || null,
       portfolio_url: portfolio_url || null,
       github_url: github_url || null,
+      applied_job_id: job_id || null,  // Store the job ID candidate applied for
       source: "Direct",
       application_source: "website",
       ip_address: ipAddress,
@@ -120,17 +115,17 @@ exports.publicCreateCandidate = async (req, res) => {
       created_by: null
     };
 
-    // FIXED: Correct INSERT statement with proper column count
+    // Updated INSERT statement with applied_job_id column
     const sql = `
       INSERT INTO candidates (
         first_name, last_name, email, phone, headline, location,
         experience_years, relevant_experience_years, current_company, current_designation,
         current_salary, expected_salary, notice_period, highest_qualification, college,
         graduation_year, certifications, why_join, cover_letter, availability,
-        willing_to_relocate, linkedin_url, portfolio_url, github_url,
+        willing_to_relocate, linkedin_url, portfolio_url, github_url, applied_job_id,
         source, application_source, ip_address, user_agent, avatar, resume_file_name,
         resume_url, status, created_by, applied_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
     const values = [
@@ -158,6 +153,7 @@ exports.publicCreateCandidate = async (req, res) => {
       candidateData.linkedin_url,
       candidateData.portfolio_url,
       candidateData.github_url,
+      candidateData.applied_job_id,
       candidateData.source,
       candidateData.application_source,
       candidateData.ip_address,
@@ -191,7 +187,7 @@ exports.publicCreateCandidate = async (req, res) => {
         });
       }
 
-      // Track job application
+      // Optional: Also track in candidate_applications table if it exists
       if (job_id) {
         const jobSql = `INSERT INTO candidate_applications (candidate_id, job_id, applied_at) VALUES (?, ?, NOW())`;
         db.query(jobSql, [candidateId, job_id], (err) => {
@@ -202,7 +198,8 @@ exports.publicCreateCandidate = async (req, res) => {
       return res.status(201).json({
         success: true,
         message: "Application submitted successfully! Our HR team will review your application.",
-        application_id: candidateId
+        application_id: candidateId,
+        applied_job_id: job_id || null
       });
     });
   } catch (error) {

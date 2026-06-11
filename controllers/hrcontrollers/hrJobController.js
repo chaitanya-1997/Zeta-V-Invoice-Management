@@ -339,3 +339,109 @@ exports.resumeJob = async (req, res) => {
     });
   }
 };
+
+
+
+// Get job by ID with candidate details
+exports.getJobById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    jobModel.getJobById(id, (err, job) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: "Error fetching job",
+          error: err.message,
+        });
+      }
+
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          message: "Job not found",
+        });
+      }
+
+      // Get candidate count for this job
+      jobModel.getCandidateCountByJobId(id, (err, countResult) => {
+        if (err) {
+          console.error("Error fetching candidate count:", err);
+        }
+        
+        const totalApplications = countResult?.[0]?.total_applications || 0;
+        
+        // Get candidates who applied for this job
+        jobModel.getCandidatesByJobId(id, (err, candidates) => {
+          if (err) {
+            console.error("Error fetching candidates:", err);
+          }
+          
+          return res.status(200).json({
+            success: true,
+            data: {
+              ...job,
+              total_applications: totalApplications,
+              candidates: candidates || []
+            }
+          });
+        });
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Get all jobs with candidate counts
+exports.getAllJobs = async (req, res) => {
+  try {
+    jobModel.getAllJobs((err, jobs) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: "Error fetching jobs",
+          error: err.message,
+        });
+      }
+
+      // Get candidate counts for all jobs
+      jobModel.getCandidateCountForAllJobs((err, counts) => {
+        if (err) {
+          console.error("Error fetching job counts:", err);
+          return res.status(200).json({
+            success: true,
+            count: jobs.length,
+            jobs: jobs,
+          });
+        }
+        
+        // Create a map of job_id -> application count
+        const countMap = {};
+        counts.forEach(item => {
+          countMap[item.id] = item.total_applications;
+        });
+        
+        // Add application_count to each job
+        const jobsWithCount = jobs.map(job => ({
+          ...job,
+          application_count: countMap[job.id] || 0
+        }));
+        
+        return res.status(200).json({
+          success: true,
+          count: jobsWithCount.length,
+          jobs: jobsWithCount,
+        });
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

@@ -135,6 +135,7 @@ const hrJobRoutes = require("./routes/hrroutes/hrJobRoutes");
 const hrProfileRoutes = require("./routes/hrroutes/hrProfileRoutes");
 const publicCandidateRoutes = require('./routes/publicRoutes/publicCandidateRoutes');
 const contactRoutes = require('./routes/publicRoutes/contactRoutes');
+const hrsettingsRoutes = require("./routes/hrroutes/hrsettingsRoutes");
 // invoice-apis/routes/authRoutes.js
 app.use("/api/auth", authRoutes);
 app.use("/api/items", itemRoutes);
@@ -158,6 +159,7 @@ app.use("/api/hr", hrInterviewRoutes);
 app.use("/api/hr", hrProfileRoutes);
 app.use('/api/public', publicCandidateRoutes);
 app.use('/api/public', contactRoutes);
+app.use("/api/hr/", hrsettingsRoutes);
 // ── Static Files ──
 app.use("/uploads", express.static("uploads"));
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
