@@ -47,6 +47,8 @@ const uploadProfilePhoto = multer({
 
 // Profile routes with photo upload
 router.get('/profile/me', hrAuthMiddleware, profileController.getMyProfile);
+// Get HR users for filter dropdown
+router.get('/hr-users', hrAuthMiddleware, profileController.getAllHrUsers);
 router.put('/profile/me', hrAuthMiddleware, uploadProfilePhoto.single('profile_image'), profileController.updateProfile);
 router.post('/profile/change-password', hrAuthMiddleware, profileController.changePassword);
 

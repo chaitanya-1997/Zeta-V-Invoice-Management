@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const profileModel = require("../../models/hrmodels/hrProfileModel");
 const uploadProfilePhoto = require('../../middleware/hrmiddleware/uploadProfilePhoto');
+const db = require("../../config/db");
 // Get current user profile
 exports.getMyProfile = async (req, res) => {
   try {
@@ -255,6 +256,45 @@ exports.updateEmailTemplates = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+
+// Get all HR users (for dropdown in candidate filters)
+exports.getAllHrUsers = async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        id, 
+        first_name, 
+        last_name,
+        CONCAT(first_name, ' ', last_name) as full_name,
+        email,
+        role
+      FROM hr_profiles 
+      WHERE is_active = 1
+      ORDER BY first_name ASC
+    `;
+    
+    db.query(sql, (err, users) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: "Error fetching users",
+          error: err.message
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: users
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };

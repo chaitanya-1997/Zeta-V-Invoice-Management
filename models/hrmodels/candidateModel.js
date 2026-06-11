@@ -733,26 +733,137 @@ const createCandidate = (candidateData, callback) => {
   );
 };
 
-// ── GET CANDIDATE BY ID ──
+// // ── GET CANDIDATE BY ID ──
+// const getCandidateById = (candidateId, callback) => {
+//   const sql = `
+//     SELECT c.*,
+//            GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+//     FROM candidates c
+//     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+//     WHERE c.id = ?
+//     GROUP BY c.id
+//   `;
+//   db.query(sql, [candidateId], callback);
+// };
+
+// // ── GET ALL CANDIDATES ──
+// const getAllCandidates = (filter = {}, callback) => {
+//   let sql = `
+//     SELECT c.*,
+//            GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+//     FROM candidates c
+//     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+//     WHERE 1=1
+//   `;
+
+//   const params = [];
+
+//   if (filter.status && filter.status !== "all") {
+//     sql += ` AND c.status = ?`;
+//     params.push(filter.status);
+//   }
+
+//   if (filter.source) {
+//     sql += ` AND c.source = ?`;
+//     params.push(filter.source);
+//   }
+
+//   if (filter.location) {
+//     sql += ` AND c.location LIKE ?`;
+//     params.push(`%${filter.location}%`);
+//   }
+
+//   if (filter.search) {
+//     sql += ` AND (
+//       c.first_name   LIKE ? OR
+//       c.last_name    LIKE ? OR
+//       c.email        LIKE ? OR
+//       c.headline     LIKE ? OR
+//       c.current_company LIKE ? OR
+//       cs.skill_name  LIKE ?
+//     )`;
+//     const t = `%${filter.search}%`;
+//     params.push(t, t, t, t, t, t);
+//   }
+
+//   if (filter.created_by) {
+//     sql += ` AND c.created_by = ?`;
+//     params.push(filter.created_by);
+//   }
+
+//   if (filter.is_saved !== undefined) {
+//     sql += ` AND c.is_saved = ?`;
+//     params.push(filter.is_saved);
+//   }
+
+//   // Experience range filters
+//   if (filter.expMin !== undefined && filter.expMin !== "") {
+//     sql += ` AND c.experience_years >= ?`;
+//     params.push(Number(filter.expMin));
+//   }
+//   if (filter.expMax !== undefined && filter.expMax !== "") {
+//     sql += ` AND c.experience_years <= ?`;
+//     params.push(Number(filter.expMax));
+//   }
+//   if (filter.relExpMin !== undefined && filter.relExpMin !== "") {
+//     sql += ` AND c.relevant_experience_years >= ?`;
+//     params.push(Number(filter.relExpMin));
+//   }
+//   if (filter.relExpMax !== undefined && filter.relExpMax !== "") {
+//     sql += ` AND c.relevant_experience_years <= ?`;
+//     params.push(Number(filter.relExpMax));
+//   }
+
+//   // Qualification filter
+//   if (filter.qualification) {
+//     sql += ` AND c.education LIKE ?`;
+//     params.push(`%${filter.qualification}%`);
+//   }
+
+//   sql += ` GROUP BY c.id`;
+
+//   switch (filter.sortBy) {
+//     case "experience": sql += ` ORDER BY c.experience_years DESC`;  break;
+//     case "salary":     sql += ` ORDER BY c.expected_salary DESC`;   break;
+//     default:           sql += ` ORDER BY c.applied_at DESC`;
+//   }
+
+//   if (filter.limit && filter.offset !== undefined) {
+//     sql += ` LIMIT ? OFFSET ?`;
+//     params.push(filter.limit, filter.offset);
+//   }
+
+//   db.query(sql, params, callback);
+// };
+
+// ── GET CANDIDATE BY ID with creator info ──
 const getCandidateById = (candidateId, callback) => {
   const sql = `
     SELECT c.*,
-           GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+           GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills,
+           hp.first_name as created_by_first_name,
+           hp.last_name as created_by_last_name,
+           CONCAT(hp.first_name, ' ', hp.last_name) as created_by_name
     FROM candidates c
     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+    LEFT JOIN hr_profiles hp ON c.created_by = hp.id
     WHERE c.id = ?
     GROUP BY c.id
   `;
   db.query(sql, [candidateId], callback);
 };
 
-// ── GET ALL CANDIDATES ──
+// ── GET ALL CANDIDATES with creator info ──
 const getAllCandidates = (filter = {}, callback) => {
   let sql = `
     SELECT c.*,
-           GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills
+           GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills,
+           hp.first_name as created_by_first_name,
+           hp.last_name as created_by_last_name,
+           CONCAT(hp.first_name, ' ', hp.last_name) as created_by_name
     FROM candidates c
     LEFT JOIN candidate_skills cs ON c.id = cs.candidate_id
+    LEFT JOIN hr_profiles hp ON c.created_by = hp.id
     WHERE 1=1
   `;
 
@@ -780,10 +891,12 @@ const getAllCandidates = (filter = {}, callback) => {
       c.email        LIKE ? OR
       c.headline     LIKE ? OR
       c.current_company LIKE ? OR
-      cs.skill_name  LIKE ?
+      cs.skill_name  LIKE ? OR
+      hp.first_name  LIKE ? OR
+      hp.last_name   LIKE ?
     )`;
     const t = `%${filter.search}%`;
-    params.push(t, t, t, t, t, t);
+    params.push(t, t, t, t, t, t, t, t);
   }
 
   if (filter.created_by) {
@@ -835,6 +948,8 @@ const getAllCandidates = (filter = {}, callback) => {
 
   db.query(sql, params, callback);
 };
+
+
 
 // ── UPDATE CANDIDATE ──
 const updateCandidate = (candidateId, updateData, callback) => {
