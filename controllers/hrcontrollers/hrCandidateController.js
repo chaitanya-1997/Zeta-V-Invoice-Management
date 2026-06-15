@@ -14,9 +14,26 @@ const fs   = require("fs");
 const path = require("path");
 const db = require("../../config/db");
 // ── helpers ──────────────────────────────────────────────────────────────────
+// const VALID_STATUSES = [
+//   "unscreened","pending","shortlisted","interview","offer","hired","rejected",
+// ];
+
 const VALID_STATUSES = [
-  "unscreened","pending","shortlisted","interview","offer","hired","rejected",
+  "application_received",
+  "unscreened",
+  "pending",
+  "shortlisted",
+  "screening_rejected",
+  "interview_scheduled",
+  "interview_rejected",
+  "offered",
+  "offer_declined",
+  "withdrawn_by_candidate",
+  "onboarded",
+  "hired",
+  "rejected",
 ];
+
 
 function parseSkills(raw) {
   if (!raw) return [];
