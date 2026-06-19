@@ -284,7 +284,34 @@ exports.getCandidateById = async (req, res) => {
   }
 };
 
+// Get All Candidates For Job Assignment
+exports.getAllCandidatesForJob = async (req, res) => {
+  try {
+    candidateModel.getAllCandidatesForJob((err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          success: false,
+          message: "Error fetching candidates",
+          error: err.message,
+        });
+      }
 
+      return res.status(200).json({
+        success: true,
+        count: results.length,
+        data: results,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
 
 
 

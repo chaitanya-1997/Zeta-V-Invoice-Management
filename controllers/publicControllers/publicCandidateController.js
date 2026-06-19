@@ -212,6 +212,8 @@ exports.publicCreateCandidate = async (req, res) => {
   }
 };
 
+
+
 // Check if candidate already applied
 exports.checkExistingApplication = async (req, res) => {
   try {

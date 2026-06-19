@@ -15,4 +15,20 @@ router.patch("/jobs/:id/pause", hrAuthMiddleware, hrJobController.pauseJob);
 
 router.patch("/jobs/:id/resume", hrAuthMiddleware, hrJobController.resumeJob);
 
+
+
+// GET all candidates NOT yet linked to this job (for the picker modal)
+router.get("/jobs/:id/picker-candidates", hrAuthMiddleware, hrJobController.getPickerCandidates);
+ 
+// POST manually add one or more candidates to a job
+// Body: { candidate_ids: [1, 2, 3], status: 'applied' }
+router.post("/jobs/:id/candidates", hrAuthMiddleware, hrJobController.addCandidatesToJob);
+ 
+// DELETE remove a manually added candidate from a job
+router.delete("/jobs/:id/candidates/:candidateId", hrAuthMiddleware, hrJobController.removeCandidateFromJob);
+ 
+// PATCH update a candidate's status on a specific job
+// Body: { status: 'shortlisted' }
+router.patch("/jobs/:id/candidates/:candidateId/status", hrAuthMiddleware, hrJobController.updateCandidateJobStatus);
+
 module.exports = router;

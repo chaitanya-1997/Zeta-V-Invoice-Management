@@ -15,6 +15,7 @@ router.post(
 );
 
 router.get("/", hrAuthMiddleware, hrCandidateController.getAllCandidates);
+router.get("/candidates-for-job", hrAuthMiddleware, hrCandidateController.getAllCandidatesForJob);
 router.get("/:id", hrAuthMiddleware, hrCandidateController.getCandidateById);
 
 router.put(

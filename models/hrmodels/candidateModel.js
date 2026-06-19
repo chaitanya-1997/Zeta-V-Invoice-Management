@@ -545,6 +545,25 @@ const deleteCandidateNote = (noteId, callback) => {
   db.query(sql, params, callback);
 };
 
+const getAllCandidatesForJob = (callback) => {
+  const sql = `
+    SELECT
+      c.*,
+      GROUP_CONCAT(cs.skill_name ORDER BY cs.id SEPARATOR ',') AS skills,
+      hp.first_name as created_by_first_name,
+      hp.last_name as created_by_last_name,
+      CONCAT(hp.first_name, ' ', hp.last_name) as created_by_name
+    FROM candidates c
+    LEFT JOIN candidate_skills cs
+      ON c.id = cs.candidate_id
+    LEFT JOIN hr_profiles hp
+      ON c.created_by = hp.id
+    GROUP BY c.id
+    ORDER BY c.first_name ASC
+  `;
+
+  db.query(sql, callback);
+};
 
 
 
@@ -571,5 +590,5 @@ module.exports = {
   VALID_STATUSES,
   STATUS_FLOW,
   STATUS_STYLES,
-
+getAllCandidatesForJob
 };
