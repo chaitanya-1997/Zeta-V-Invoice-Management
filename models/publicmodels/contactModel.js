@@ -25,6 +25,33 @@ const createContact = (data, callback) => {
   );
 };
 
-module.exports = {
-  createContact
+
+const createEnquiries = (data, callback) => {
+  const sql = `
+    INSERT INTO contact_enquiries (
+      full_name, work_email, company, phone, subject, message, 
+      ip_address, user_agent
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    sql,
+    [
+      data.full_name,
+      data.work_email,
+      data.company || null,
+      data.phone || null,
+      data.subject || null,
+      data.message,
+      data.ip_address || null,
+      data.user_agent || null,
+    ],
+    callback
+  );
 };
+
+module.exports = {
+  createContact,
+  createEnquiries
+};
+

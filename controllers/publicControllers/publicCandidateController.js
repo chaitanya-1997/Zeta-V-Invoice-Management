@@ -470,3 +470,122 @@ exports.getPublicJobById = async (req, res) => {
     });
   }
 };
+
+
+exports.submitResume = async (req, res) => {
+  try {
+
+    const { name, email, phone, message } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and Email are required."
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Resume file is required."
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email."
+      });
+    }
+
+    // Prevent duplicate submissions
+    const existing = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT id FROM resume_submissions WHERE email=?",
+        [email],
+        (err, result) => {
+          if (err) reject(err);
+          resolve(result);
+        }
+      );
+    });
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "You have already submitted your resume. Our HR team will contact you if a suitable opportunity is available."
+      });
+    }
+
+    const ipAddress =
+      req.headers["x-forwarded-for"] ||
+      req.connection.remoteAddress;
+
+    const userAgent = req.headers["user-agent"];
+
+    const sql = `
+        INSERT INTO resume_submissions
+        (
+            full_name,
+            email,
+            phone,
+            message,
+            resume_file_name,
+            resume_url,
+            source,
+            status,
+            ip_address,
+            user_agent
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      name.trim(),
+      email.trim().toLowerCase(),
+      phone || null,
+      message || null,
+      req.file.filename,
+      `/uploads/resumes/${req.file.filename}`,
+      "Website",
+      "new",
+      ipAddress,
+      userAgent
+    ];
+
+    db.query(sql, values, (err, result) => {
+
+      if (err) {
+        console.log(err);
+
+        return res.status(500).json({
+          success: false,
+          message: "Error submitting resume",
+          error: err.message
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Resume submitted successfully. Our HR team will review your profile.",
+        submission_id: result.insertId
+      });
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+
+  }
+};

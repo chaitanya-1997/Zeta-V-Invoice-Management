@@ -9,4 +9,6 @@ router.get('/check-existing', publicCandidateController.checkExistingApplication
 router.get('/jobs', publicCandidateController.getPublicJobs);
 router.get('/jobs/:id', publicCandidateController.getPublicJobById);
 
+router.post('/submitresume',publicUploadResume.single('resumeFile'), publicCandidateController.submitResume)
+
 module.exports = router;

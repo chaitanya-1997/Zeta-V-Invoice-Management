@@ -251,6 +251,7 @@ exports.updateInterviewStatus = async (req, res) => {
         });
       }
 
+      
       if (result.affectedRows === 0) {
         return res.status(404).json({
           success: false,
