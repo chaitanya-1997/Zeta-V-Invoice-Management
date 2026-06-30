@@ -649,6 +649,34 @@ const getAppliedCandidatesByJobId = (jobId, callback) => {
 };
 
 // ─── Manually Added Candidates (source = 'manual') ───────────────────────────
+// const getManuallyAddedCandidatesByJobId = (jobId, callback) => {
+//   const sql = `
+//     SELECT
+//       c.id,
+//       c.first_name,
+//       c.last_name,
+//       CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,'')) AS full_name,
+//       c.email,
+//       c.phone,
+//       c.location,
+//       c.headline,
+//       c.experience_years,
+//       c.relevant_experience_years,
+//       c.current_company,
+//       c.expected_salary,
+    
+//       c.avatar,
+//       jc.status,
+//       jc.source,
+//       jc.applied_at AS added_at
+//     FROM job_candidates jc
+//     INNER JOIN candidates c ON jc.candidate_id = c.id
+//     WHERE jc.job_id = ? AND jc.source = 'manual'
+//     ORDER BY jc.applied_at DESC
+//   `;
+//   db.query(sql, [jobId], callback);
+// };
+
 const getManuallyAddedCandidatesByJobId = (jobId, callback) => {
   const sql = `
     SELECT
@@ -664,16 +692,17 @@ const getManuallyAddedCandidatesByJobId = (jobId, callback) => {
       c.relevant_experience_years,
       c.current_company,
       c.expected_salary,
-    
       c.avatar,
-      jc.status,
+      c.status,
       jc.source,
       jc.applied_at AS added_at
     FROM job_candidates jc
     INNER JOIN candidates c ON jc.candidate_id = c.id
-    WHERE jc.job_id = ? AND jc.source = 'manual'
+    WHERE jc.job_id = ? 
+      AND jc.source = 'manual'
     ORDER BY jc.applied_at DESC
   `;
+
   db.query(sql, [jobId], callback);
 };
 
