@@ -198,6 +198,7 @@ const createCandidate = (candidateData, callback) => {
 
 
 
+
 // ── GET CANDIDATE BY ID with creator info ──
 const getCandidateById = (candidateId, callback) => {
   const sql = `
