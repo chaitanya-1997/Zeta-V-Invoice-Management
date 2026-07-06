@@ -6,6 +6,6 @@ const pricingController = require('../../controllers/publicControllers/pricingCa
 
 // Public route - Submit pricing calculator form
 router.post("/submit", pricingController.submitPricing);
-
+router.post("/quote-request-digitalfootprint", pricingController.submitQuote);
 
 module.exports = router;
