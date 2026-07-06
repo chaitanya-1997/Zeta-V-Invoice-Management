@@ -199,6 +199,8 @@ exports.createCandidate = async (req, res) => {
 
 
 
+
+
 exports.getAllCandidates = async (req, res) => {
   try {
     const {

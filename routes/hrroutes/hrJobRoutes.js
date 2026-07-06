@@ -31,4 +31,11 @@ router.delete("/jobs/:id/candidates/:candidateId", hrAuthMiddleware, hrJobContro
 // Body: { status: 'shortlisted' }
 router.patch("/jobs/:id/candidates/:candidateId/status", hrAuthMiddleware, hrJobController.updateCandidateJobStatus);
 
+
+
+
+router.get('/jobs/count/active',hrAuthMiddleware, hrJobController.getActiveJobsCount);
+router.get('/jobs/count/total',hrAuthMiddleware, hrJobController.getTotalJobsCount);
+
+
 module.exports = router;

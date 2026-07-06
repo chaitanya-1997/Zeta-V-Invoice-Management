@@ -764,6 +764,20 @@ const updateCandidateJobStatus = (jobId, candidateId, status, callback) => {
   db.query(sql, [status, jobId, candidateId], callback);
 };
 
+
+const getActiveJobsCount = (callback) => {
+  const sql = `SELECT COUNT(*) as count FROM jobs WHERE status = 'active'`;
+  db.query(sql, callback);
+};
+
+// Get count of all jobs
+const getTotalJobsCount = (callback) => {
+  const sql = `SELECT COUNT(*) as count FROM jobs`;
+  db.query(sql, callback);
+};
+
+
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 module.exports = {
   // Job CRUD
@@ -794,4 +808,9 @@ module.exports = {
   addCandidateToJob,
   removeCandidateFromJob,
   updateCandidateJobStatus,
+
+  // Job counts
+  getActiveJobsCount,
+  getTotalJobsCount,
+
 };

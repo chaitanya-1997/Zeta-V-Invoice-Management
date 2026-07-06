@@ -326,6 +326,7 @@ exports.removeCandidateFromJob = async (req, res) => {
   }
 };
 
+
 // ─── Update Candidate Status on a Job ────────────────────────────────────────
 exports.updateCandidateJobStatus = async (req, res) => {
   try {
@@ -353,3 +354,62 @@ exports.updateCandidateJobStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+// In your job controller file
+
+// Get active jobs count only
+exports.getActiveJobsCount = async (req, res) => {
+  try {
+    jobModel.getActiveJobsCount((err, result) => {
+      if (err) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Error fetching active jobs count", 
+          error: err.message 
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          active_jobs: result[0]?.count || 0
+        }
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// Get total jobs count only
+exports.getTotalJobsCount = async (req, res) => {
+  try {
+    jobModel.getTotalJobsCount((err, result) => {
+      if (err) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Error fetching total jobs count", 
+          error: err.message 
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          total_jobs: result[0]?.count || 0
+        }
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+

@@ -393,6 +393,7 @@ const deleteCandidate = (candidateId, callback) => {
   db.query(`DELETE FROM candidates WHERE id = ?`, [candidateId], callback);
 };
 
+
 // ── SKILLS ──
 const addCandidateSkill = (candidateId, skillName, skillCategory, callback) => {
   const sql = `
