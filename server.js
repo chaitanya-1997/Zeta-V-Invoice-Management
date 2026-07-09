@@ -138,6 +138,7 @@ const contactRoutes = require('./routes/publicRoutes/contactRoutes');
 const hrsettingsRoutes = require("./routes/hrroutes/hrsettingsRoutes");
 
 const pricingRoutes = require("./routes/publicRoutes/pricingRoutes"); 
+const chatbotRoutes = require("./routes/publicRoutes/chatbotRoutes");
 // invoice-apis/routes/authRoutes.js
 app.use("/api/auth", authRoutes);
 app.use("/api/items", itemRoutes);
@@ -164,6 +165,7 @@ app.use('/api/public', contactRoutes);
 app.use("/api/hr/", hrsettingsRoutes);
 
 app.use("/api/pricing", pricingRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 // ── Static Files ──
 app.use("/uploads", express.static("uploads"));
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
