@@ -32,6 +32,7 @@ const VALID_STATUSES = [
   "onboarded",
   "hired",
   "rejected",
+  "position_on_hold" 
 ];
 
 
@@ -129,74 +130,6 @@ exports.createCandidate = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
-
-
-
-
-
-
-
-// // ── GET ALL CANDIDATES ───────────────────────────────────────────────────────
-// exports.getAllCandidates = async (req, res) => {
-//   try {
-//     const {
-//       status, source, location, search, sortBy, qualification,
-//       expMin, expMax, relExpMin, relExpMax,
-//       page = 1, limit = 12,
-//     } = req.query;
-
-//     const offset = (parseInt(page) - 1) * parseInt(limit);
-
-//     const filter = {
-//       status, source, location, search, sortBy, qualification,
-//       expMin, expMax, relExpMin, relExpMax,
-//       limit: parseInt(limit),
-//       offset,
-//     };
-
-//     candidateModel.getAllCandidates(filter, (err, results) => {
-//       if (err) {
-//         console.error(err);
-//         return res.status(500).json({ success: false, message: "Error fetching candidates", error: err.message });
-//       }
-
-//       candidateModel.getCandidatesCount(filter, (err, countResult) => {
-//         const total = countResult?.[0]?.total || 0;
-//         return res.status(200).json({
-//           success: true,
-//           data: results,
-//           pagination: {
-//             page: parseInt(page),
-//             limit: parseInt(limit),
-//             total,
-//             pages: Math.ceil(total / parseInt(limit)),
-//           },
-//         });
-//       });
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     return res.status(500).json({ success: false, message: "Server error", error: error.message });
-//   }
-// };
-
-// // ── GET SINGLE CANDIDATE ─────────────────────────────────────────────────────
-// exports.getCandidateById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     candidateModel.getCandidateById(id, (err, results) => {
-//       if (err) return res.status(500).json({ success: false, message: "Error fetching candidate", error: err.message });
-//       if (!results.length) return res.status(404).json({ success: false, message: "Candidate not found" });
-
-//       return res.status(200).json({ success: true, data: results[0] });
-//     });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: "Server error", error: error.message });
-//   }
-// };
-
-
 
 
 
@@ -317,126 +250,6 @@ exports.getAllCandidatesForJob = async (req, res) => {
 
 
 
-// ── UPDATE CANDIDATE ─────────────────────────────────────────────────────────
-// exports.updateCandidate = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const {
-//       first_name, last_name, phone,
-//       headline, location,
-//       experience_years, relevant_experience_years,
-//       current_company, current_salary, expected_salary,
-//       source, education, status,
-//     } = req.body;
-
-//     if (status && !VALID_STATUSES.includes(status)) {
-//       return res.status(400).json({ success: false, message: "Invalid status." });
-//     }
-
-//     // ✅ FIX: Use explicit key presence check via req.body directly
-//     // so empty strings are still included (user clearing a field)
-//     const body = req.body;
-//     const updateData = {};
-
-//     // String fields — include even if empty string
-//     const stringFields = [
-//       "first_name", "last_name", "phone",
-//       "headline", "location", "current_company",
-//       "education", "source", "status",
-//     ];
-//     for (const key of stringFields) {
-//       if (key in body) {
-//         updateData[key] = typeof body[key] === "string" ? body[key].trim() : body[key];
-//       }
-//     }
-
-//     // Numeric nullable fields — include even if empty (model will convert to null)
-//     const numericFields = [
-//       "experience_years", "relevant_experience_years",
-//       "current_salary", "expected_salary",
-//     ];
-//     for (const key of numericFields) {
-//       if (key in body) {
-//         updateData[key] = body[key]; // model handles null conversion
-//       }
-//     }
-
-//     // New resume file uploaded
-//     if (req.file) {
-//       updateData.resume_file_name = req.file.filename;
-//       updateData.resume_url       = `/uploads/resumes/${req.file.filename}`;
-//     }
-
-//     console.log("Update Data received:", updateData);
-
-//     // Regenerate avatar if name fields are present
-//     const needsAvatar = "first_name" in updateData || "last_name" in updateData;
-
-//     function doUpdate() {
-//       candidateModel.updateCandidate(id, updateData, (err) => {
-//         if (err) {
-//           console.error("Update Candidate Error:", err);
-//           return res.status(500).json({
-//             success: false,
-//             message: "Error updating candidate",
-//             error: err.message,
-//           });
-//         }
-
-//         // Re-sync skills if skills field was sent
-//         if ("skills" in body) {
-//           const skills = parseSkills(body.skills);
-//           candidateModel.deleteAllCandidateSkills(id, (delErr) => {
-//             if (delErr) console.error("Delete skills error:", delErr);
-//             skills.forEach(skillName => {
-//               candidateModel.addCandidateSkill(id, skillName, null, err => {
-//                 if (err) console.error("Skill re-insert error:", err);
-//               });
-//             });
-//           });
-//         }
-
-//         // Return updated candidate
-//         candidateModel.getCandidateById(id, (err, rows) => {
-//           if (err || !rows || !rows.length) {
-//             return res.status(200).json({
-//               success: true,
-//               message: "Candidate updated successfully",
-//             });
-//           }
-//           return res.status(200).json({
-//             success: true,
-//             message: "Candidate updated successfully",
-//             data: rows[0],
-//           });
-//         });
-//       });
-//     }
-
-//     if (needsAvatar) {
-//       // Fetch current record to fill in whichever name part wasn't sent
-//       candidateModel.getCandidateById(id, (err, rows) => {
-//         if (!err && rows && rows.length) {
-//           const fn = updateData.first_name ?? rows[0].first_name;
-//           const ln = updateData.last_name  ?? rows[0].last_name;
-//           updateData.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(`${fn} ${ln}`)}&background=3b82f6&color=fff`;
-//         }
-//         doUpdate();
-//       });
-//     } else {
-//       doUpdate();
-//     }
-
-//   } catch (error) {
-//     console.error("Update Candidate Error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Server error",
-//       error: error.message,
-//     });
-//   }
-// };
 
 
 exports.updateCandidate = async (req, res) => {
@@ -894,7 +707,82 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-
-
-
-
+exports.getMonthlyCandidates = (req, res) => {
+  console.log('✅ getMonthlyCandidates called');
+  console.log('📝 Query params:', req.query);
+  
+  const { month, year } = req.query;
+  const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+  const targetYear = year ? parseInt(year) : new Date().getFullYear();
+  
+  console.log(`📊 Fetching monthly data for: ${targetMonth}/${targetYear}`);
+  
+  // Validate month and year
+  if (targetMonth < 1 || targetMonth > 12) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid month. Must be between 1 and 12"
+    });
+  }
+  
+  // ✅ Removed deleted_at check since column doesn't exist
+  const query = `
+    SELECT 
+      DAY(created_at) as day,
+      COUNT(*) as count,
+      DATE(created_at) as date
+    FROM candidates
+    WHERE MONTH(created_at) = ? 
+      AND YEAR(created_at) = ?
+    GROUP BY DAY(created_at), DATE(created_at)
+    ORDER BY DAY(created_at) ASC
+  `;
+  
+  db.query(query, [targetMonth, targetYear], (err, results) => {
+    if (err) {
+      console.error('❌ Database error:', err);
+      return res.status(500).json({
+        success: false,
+        message: "Database error",
+        error: err.message
+      });
+    }
+    
+    console.log(`✅ Found ${results.length} days with data`);
+    
+    // Create map for daily counts
+    const dataMap = {};
+    results.forEach(row => {
+      dataMap[row.day] = row.count;
+    });
+    
+    // Build complete daily data
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+    const dailyData = [];
+    let totalCandidates = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const count = dataMap[day] || 0;
+      dailyData.push({
+        day: day,
+        count: count,
+        date: `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      });
+      totalCandidates += count;
+    }
+    
+    const monthName = new Date(targetYear, targetMonth - 1).toLocaleString('default', { month: 'long' });
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        month: targetMonth,
+        year: targetYear,
+        month_name: monthName,
+        total_candidates: totalCandidates,
+        daily_data: dailyData,
+        days_in_month: daysInMonth
+      }
+    });
+  });
+};

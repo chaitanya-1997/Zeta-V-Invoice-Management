@@ -38,4 +38,5 @@ router.get('/jobs/count/active',hrAuthMiddleware, hrJobController.getActiveJobsC
 router.get('/jobs/count/total',hrAuthMiddleware, hrJobController.getTotalJobsCount);
 
 
+
 module.exports = router;
