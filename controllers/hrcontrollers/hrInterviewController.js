@@ -237,12 +237,64 @@ exports.updateInterview = async (req, res) => {
 };
 
 // Update interview status
+// exports.updateInterviewStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { status, result } = req.body;
+
+//     interviewModel.updateInterviewStatus(id, status, result || 'pending', (err, result) => {
+//       if (err) {
+//         return res.status(500).json({
+//           success: false,
+//           message: "Error updating interview status",
+//           error: err.message
+//         });
+//       }
+
+      
+//       if (result.affectedRows === 0) {
+//         return res.status(404).json({
+//           success: false,
+//           message: "Interview not found"
+//         });
+//       }
+
+//       return res.status(200).json({
+//         success: true,
+//         message: `Interview ${status} successfully`
+//       });
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// };
+
+// Update interview status
 exports.updateInterviewStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, result } = req.body;
 
-    interviewModel.updateInterviewStatus(id, status, result || 'pending', (err, result) => {
+    // Validate and set result based on status
+    let finalResult = result || 'pending';
+    
+    // If status is completed, ensure result is either 'pass' or 'fail'
+    if (status === 'completed') {
+      if (!['pass', 'fail', 'selected', 'rejected'].includes(finalResult)) {
+        finalResult = 'pending';
+      }
+      // Map 'selected' to 'pass' and 'rejected' to 'fail' for consistency
+      if (finalResult === 'selected') finalResult = 'pass';
+      if (finalResult === 'rejected') finalResult = 'fail';
+    } else {
+      // For other statuses, result should be 'pending'
+      finalResult = 'pending';
+    }
+
+    interviewModel.updateInterviewStatus(id, status, finalResult, (err, result) => {
       if (err) {
         return res.status(500).json({
           success: false,
@@ -251,7 +303,6 @@ exports.updateInterviewStatus = async (req, res) => {
         });
       }
 
-      
       if (result.affectedRows === 0) {
         return res.status(404).json({
           success: false,

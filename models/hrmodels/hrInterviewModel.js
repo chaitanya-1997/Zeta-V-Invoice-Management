@@ -138,6 +138,17 @@ const updateInterview = (id, data, callback) => {
   );
 };
 
+// // Update interview status
+// const updateInterviewStatus = (id, status, result, callback) => {
+//   const sql = `
+//     UPDATE hr_interviews
+//     SET status = ?, result = ?
+//     WHERE id = ? AND status != 'deleted'
+//   `;
+//   db.query(sql, [status, result, id], callback);
+// };
+
+
 // Update interview status
 const updateInterviewStatus = (id, status, result, callback) => {
   const sql = `

@@ -1,14 +1,6 @@
 
 
 
-
-
-
-
-
-
-
-
 const candidateModel = require("../../models/hrmodels/candidateModel");
 const fs   = require("fs");
 const path = require("path");
