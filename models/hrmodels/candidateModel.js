@@ -562,7 +562,8 @@ const getAllCandidatesForJob = (callback) => {
   db.query(sql, callback);
 };
 
-
+console.log("DB query type:", typeof db.query);
+console.log("DB promise:", typeof db.promise);
 
 module.exports = {
   createCandidate,
