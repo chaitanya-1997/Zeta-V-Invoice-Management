@@ -2,6 +2,7 @@ const db = require("../config/db");
 const { getRate } = require("../services/exchangeRateService");
 
 
+
 // exports.createInvoice = async (req, res) => {
 //   const conn = await db.promise().getConnection();
 
@@ -16,10 +17,9 @@ const { getRate } = require("../services/exchangeRateService");
 //       address_id,
 //       project_id,
 //       bank_detail_id,
-//       reference, // kept for backward compat but no longer used in form
-//       // ★ NEW / RENAMED fields
-//       job, // replaces subject
-//       contact_person, // non-India only
+//       reference,
+//       job,
+//       contact_person,
 //       invoice_date,
 //       due_date,
 //       discount_pct = 0,
@@ -27,23 +27,37 @@ const { getRate } = require("../services/exchangeRateService");
 //       adjustment = 0,
 //       notes,
 //       terms,
-//       // ★ Tax fields
-//       tax_pct = 0, // USA only
-//       tax_amt = 0, // USA only (pre-calculated by frontend, but we recalc below)
-//       vat_pct = 0, // HK / China
-//       vat_amt = 0, // HK / China (pre-calculated by frontend, but we recalc below)
+//       tax_pct = 0,
+//       tax_amt = 0,
+//       vat_pct = 0,
+//       vat_amt = 0,
 //       items = [],
 //       gst_lines = [],
+//       hsn_sac = null, // ★ NEW field
 //     } = req.body;
+
+//     // ★ Debug logging
+//     console.log('Creating invoice with data:', {
+//       customer_id,
+//       country_code,
+//       hsn_sac,
+//       items_count: items.length,
+//       gst_lines_count: gst_lines.length,
+//       isIndian: country_code?.toUpperCase() === 'IN'
+//     });
 
 //     const [customerRows] = await conn.query(
 //       `
-//   SELECT currency
-//   FROM zv_customers
-//   WHERE id = ?
-// `,
+//       SELECT currency
+//       FROM zv_customers
+//       WHERE id = ?
+//       `,
 //       [customer_id],
 //     );
+
+//     if (!customerRows || customerRows.length === 0) {
+//       throw new Error('Customer not found');
+//     }
 
 //     const customerCurrency = customerRows[0]?.currency || "USD";
 
@@ -62,8 +76,6 @@ const { getRate } = require("../services/exchangeRateService");
 
 //       if (seqRows.length) {
 //         const seq = seqRows[0];
-//         // const nextNum = seq.current_number + 1;
-//         // invoiceNumber = `${seq.prefix}${nextNum}`;
 //         const nextNum = seq.current_number + 1;
 
 //         invoiceNumber = `${seq.prefix}${String(nextNum).padStart(4, "0")}`;
@@ -94,10 +106,7 @@ const { getRate } = require("../services/exchangeRateService");
 //       total_gst_amt += after_discount * (g.rate / 100);
 //     });
 
-//     // ★ USA Tax — recalculate server-side for safety
 //     const calc_tax_amt = after_discount * (Number(tax_pct) / 100);
-
-//     // ★ HK/CN VAT — recalculate server-side for safety
 //     const calc_vat_amt = after_discount * (Number(vat_pct) / 100);
 
 //     const total =
@@ -111,104 +120,90 @@ const { getRate } = require("../services/exchangeRateService");
 //     const exchangeRate = await getRate(customerCurrency);
 
 //     const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
-
 //     const totalUSD = Number((total / exchangeRate).toFixed(2));
+
+//     // ★ Ensure hsn_sac is null if not provided or empty
+//     const finalHsnSac = (hsn_sac && hsn_sac.trim() !== '') ? hsn_sac.trim() : null;
+
+//     // ★ Log the final query parameters for debugging
+//     console.log('Inserting invoice with HSN/SAC:', finalHsnSac);
 
 //     const [invoiceResult] = await conn.query(
 //       `INSERT INTO zv_invoices
-//    (
-//     invoice_number,
-//     customer_id,
-//     address_id,
-//     bank_detail_id,
-//     project_id,
-
-//     reference,
-//     subject,
-//     job,
-//     contact_person,
-
-//     invoice_date,
-//     due_date,
-
-//     subtotal,
-//     discount_pct,
-//     discount_amt,
-//     after_discount,
-
-//     tds_pct,
-//     tds_amt,
-
-//     tax_pct,
-//     tax_amt,
-
-//     vat_pct,
-//     vat_amt,
-
-//     total_gst_amt,
-//     adjustment,
-
-//     total,
-
-//     currency_code,
-//     exchange_rate,
-//     subtotal_usd,
-//     total_usd,
-//     invoice_exchange_date,
-
-//     notes,
-//     terms,
-//     created_by,
-//     balance_due
-//    )
-//    VALUES
-//    (
-//    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-//    )`,
+//       (
+//         invoice_number,
+//         customer_id,
+//         address_id,
+//         bank_detail_id,
+//         project_id,
+//         reference,
+//         subject,
+//         job,
+//         contact_person,
+//         invoice_date,
+//         due_date,
+//         subtotal,
+//         discount_pct,
+//         discount_amt,
+//         after_discount,
+//         tds_pct,
+//         tds_amt,
+//         tax_pct,
+//         tax_amt,
+//         vat_pct,
+//         vat_amt,
+//         total_gst_amt,
+//         adjustment,
+//         total,
+//         currency_code,
+//         exchange_rate,
+//         subtotal_usd,
+//         total_usd,
+//         invoice_exchange_date,
+//         notes,
+//         terms,
+//         created_by,
+//         balance_due,
+//         hsn_sac
+//       )
+//       VALUES
+//       (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+//       `,
 //       [
 //         invoiceNumber,
 //         customer_id,
 //         address_id || null,
 //         bank_detail_id || null,
 //         project_id || null,
-
 //         reference || null,
 //         job || null,
 //         job || null,
 //         contact_person || null,
-
 //         invoice_date,
 //         due_date,
-
 //         subtotal,
 //         discount_pct,
 //         discount_amt,
 //         after_discount,
-
 //         tds_pct,
 //         tds_amt,
-
 //         Number(tax_pct) || 0,
 //         calc_tax_amt,
-
 //         Number(vat_pct) || 0,
 //         calc_vat_amt,
-
 //         total_gst_amt,
 //         adjustment,
-
 //         total,
-
 //         customerCurrency,
 //         exchangeRate,
 //         subtotalUSD,
 //         totalUSD,
 //         new Date(),
-
 //         notes,
 //         terms,
 //         userId,
 //         total,
+//         finalHsnSac, // ★ Use the sanitized value
 //       ],
 //     );
 
@@ -255,502 +250,247 @@ const { getRate } = require("../services/exchangeRateService");
 //     });
 //   } catch (error) {
 //     await conn.rollback();
-//     res.status(500).json({ success: false, message: error.message });
+//     console.error('Error creating invoice:', error);
+//     console.error('Error stack:', error.stack);
+//     res.status(500).json({ 
+//       success: false, 
+//       message: error.message,
+//       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+//     });
 //   } finally {
 //     conn.release();
 //   }
 // };
 
 
-// hsn/sac number added 
 
-exports.createInvoice = async (req, res) => {
-  const conn = await db.promise().getConnection();
+// exports.updateInvoice = async (req, res) => {
+//   const conn = await db.promise().getConnection();
 
-  try {
-    await conn.beginTransaction();
+//   try {
+//     await conn.beginTransaction();
 
-    const userId = req.user.id;
+//     const { id } = req.params;
 
-    const {
-      customer_id,
-      country_code,
-      address_id,
-      project_id,
-      bank_detail_id,
-      reference,
-      job,
-      contact_person,
-      invoice_date,
-      due_date,
-      discount_pct = 0,
-      tds_pct = 0,
-      adjustment = 0,
-      notes,
-      terms,
-      tax_pct = 0,
-      tax_amt = 0,
-      vat_pct = 0,
-      vat_amt = 0,
-      items = [],
-      gst_lines = [],
-      hsn_sac = null, // ★ NEW field
-    } = req.body;
+//     const {
+//       customer_id,
+//       address_id,
+//       bank_detail_id,
+//       project_id,
+//       job,
+//       contact_person,
+//       invoice_date,
+//       due_date,
+//       discount_pct = 0,
+//       tds_pct = 0,
+//       adjustment = 0,
+//       notes,
+//       terms,
+//       status,
+//       tax_pct = 0,
+//       vat_pct = 0,
+//       items = [],
+//       gst_lines = [],
+//     } = req.body;
 
-    // ★ Debug logging
-    console.log('Creating invoice with data:', {
-      customer_id,
-      country_code,
-      hsn_sac,
-      items_count: items.length,
-      gst_lines_count: gst_lines.length,
-      isIndian: country_code?.toUpperCase() === 'IN'
-    });
+//     /* ── Recalculate ── */
+//     let subtotal = 0;
+//     items.forEach((item) => {
+//       subtotal += Number(item.quantity) * Number(item.rate);
+//     });
 
-    const [customerRows] = await conn.query(
-      `
-      SELECT currency
-      FROM zv_customers
-      WHERE id = ?
-      `,
-      [customer_id],
-    );
+//     const discount_amt = subtotal * (discount_pct / 100);
+//     const after_discount = subtotal - discount_amt;
+//     const tds_amt = after_discount * (tds_pct / 100);
 
-    if (!customerRows || customerRows.length === 0) {
-      throw new Error('Customer not found');
-    }
+//     let total_gst_amt = 0;
+//     gst_lines.forEach((g) => {
+//       total_gst_amt += after_discount * (g.rate / 100);
+//     });
 
-    const customerCurrency = customerRows[0]?.currency || "USD";
+//     const calc_tax_amt = after_discount * (Number(tax_pct) / 100);
+//     const calc_vat_amt = after_discount * (Number(vat_pct) / 100);
 
-    /* ── Generate Invoice Number ── */
-    let invoiceNumber;
+//     const total =
+//       after_discount -
+//       tds_amt +
+//       total_gst_amt +
+//       calc_tax_amt +
+//       calc_vat_amt +
+//       Number(adjustment);
 
-    if (country_code) {
-      const [seqRows] = await conn.query(
-        `SELECT id, prefix, current_number
-         FROM zv_invoice_sequences
-         WHERE country_code = ?
-         LIMIT 1
-         FOR UPDATE`,
-        [country_code.toUpperCase()],
-      );
+//     /* ── Update Invoice ── */
+//     await conn.query(
+//       `UPDATE zv_invoices SET
+//         customer_id    = ?,
+//         address_id     = ?,
+//         bank_detail_id = ?,
+//         project_id     = ?,
+//         job            = ?,
+//         subject        = ?,
+//         contact_person = ?,
+//         invoice_date   = ?,
+//         due_date       = ?,
+//         subtotal       = ?,
+//         discount_pct   = ?,
+//         discount_amt   = ?,
+//         after_discount = ?,
+//         tds_pct        = ?,
+//         tds_amt        = ?,
+//         tax_pct        = ?,
+//         tax_amt        = ?,
+//         vat_pct        = ?,
+//         vat_amt        = ?,
+//         total_gst_amt  = ?,
+//         adjustment     = ?,
+//         total          = ?,
+//         notes          = ?,
+//         terms          = ?,
+//         status         = ?
+//        WHERE id = ?`,
+//       [
+//         customer_id,
+//         address_id || null,
+//         bank_detail_id || null,
+//         project_id || null,
+//         job || null,
+//         job || null, // keep subject in sync
+//         contact_person || null,
+//         invoice_date,
+//         due_date,
+//         subtotal,
+//         discount_pct,
+//         discount_amt,
+//         after_discount,
+//         tds_pct,
+//         tds_amt,
+//         Number(tax_pct) || 0,
+//         calc_tax_amt,
+//         Number(vat_pct) || 0,
+//         calc_vat_amt,
+//         total_gst_amt,
+//         adjustment,
+//         total,
+//         notes,
+//         terms,
+//         status,
+//         id,
+//       ],
+//     );
 
-      if (seqRows.length) {
-        const seq = seqRows[0];
-        const nextNum = seq.current_number + 1;
+//     /* ── Replace Items ── */
+//     await conn.query(`DELETE FROM zv_invoice_items WHERE invoice_id = ?`, [id]);
+//     for (let i = 0; i < items.length; i++) {
+//       const item = items[i];
+//       const amount = Number(item.quantity) * Number(item.rate);
+//       await conn.query(
+//         `INSERT INTO zv_invoice_items (invoice_id, description, quantity, rate, amount, sort_order) VALUES (?,?,?,?,?,?)`,
+//         [id, item.description, item.quantity, item.rate, amount, i + 1],
+//       );
+//     }
 
-        invoiceNumber = `${seq.prefix}${String(nextNum).padStart(4, "0")}`;
-        await conn.query(
-          `UPDATE zv_invoice_sequences SET current_number = ? WHERE id = ?`,
-          [nextNum, seq.id],
-        );
-      }
-    }
+//     /* ── Replace GST Lines ── */
+//     await conn.query(`DELETE FROM zv_invoice_gst_lines WHERE invoice_id = ?`, [
+//       id,
+//     ]);
+//     for (let i = 0; i < gst_lines.length; i++) {
+//       const gst = gst_lines[i];
+//       const gstAmount = after_discount * (gst.rate / 100);
+//       await conn.query(
+//         `INSERT INTO zv_invoice_gst_lines (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order) VALUES (?,?,?,?,?,?)`,
+//         [id, gst.gst_type, gst.rate, gst.is_custom || 0, gstAmount, i + 1],
+//       );
+//     }
 
-    if (!invoiceNumber) {
-      invoiceNumber = "INV-" + Date.now().toString().slice(-6);
-    }
+//     await conn.commit();
+//     res.json({ success: true, message: "Invoice updated successfully" });
+//   } catch (error) {
+//     await conn.rollback();
+//     res.status(500).json({ success: false, message: error.message });
+//   } finally {
+//     conn.release();
+//   }
+// };
 
-    /* ── Calculations ── */
-    let subtotal = 0;
-    items.forEach((item) => {
-      subtotal += Number(item.quantity) * Number(item.rate);
-    });
+// exports.getAllInvoices = async (req, res) => {
+//   try {
+//     // ✅ Auto mark overdue
+//     await db.promise().query(`
+//       UPDATE zv_invoices
+//       SET status = 'overdue'
+//       WHERE due_date < CURDATE()
+//       AND status NOT IN ('paid','cancelled','overdue')
+//     `);
 
-    const discount_amt = subtotal * (discount_pct / 100);
-    const after_discount = subtotal - discount_amt;
-    const tds_amt = after_discount * (tds_pct / 100);
+//     // ✅ Get invoices
+//     const [rows] = await db.promise().query(`
+//       SELECT
+//         i.id,
+//         i.invoice_number,
 
-    // India GST
-    let total_gst_amt = 0;
-    gst_lines.forEach((g) => {
-      total_gst_amt += after_discount * (g.rate / 100);
-    });
+//         -- Customer
+//         c.name AS customer_name,
+//         c.company_name AS customer_company,
+//         c.currency AS customer_currency,
+//         c.id AS customer_id,
 
-    const calc_tax_amt = after_discount * (Number(tax_pct) / 100);
-    const calc_vat_amt = after_discount * (Number(vat_pct) / 100);
+//         -- ✅ Customer Billing Country
+//         ca.country AS customer_country,
 
-    const total =
-      after_discount -
-      tds_amt +
-      total_gst_amt +
-      calc_tax_amt +
-      calc_vat_amt +
-      Number(adjustment);
+//         -- Company Address
+//         sa.city AS company_addr_city,
+//         sa.country AS company_addr_country,
 
-    const exchangeRate = await getRate(customerCurrency);
+//         -- Bank
+//         bd.bank_name,
+//         bd.account_number AS bank_account_number,
 
-    const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
-    const totalUSD = Number((total / exchangeRate).toFixed(2));
+//         -- Invoice
+//         i.reference,
+//         i.invoice_date,
+//         i.due_date,
+//         i.subtotal,
+//         i.total,
+//         i.status,
+//         i.created_at,
+//         i.total_paid,
+//         i.balance_due,
+//         i.quote_number
 
-    // ★ Ensure hsn_sac is null if not provided or empty
-    const finalHsnSac = (hsn_sac && hsn_sac.trim() !== '') ? hsn_sac.trim() : null;
+//       FROM zv_invoices i
 
-    // ★ Log the final query parameters for debugging
-    console.log('Inserting invoice with HSN/SAC:', finalHsnSac);
+//       JOIN zv_customers c
+//         ON c.id = i.customer_id
 
-    const [invoiceResult] = await conn.query(
-      `INSERT INTO zv_invoices
-      (
-        invoice_number,
-        customer_id,
-        address_id,
-        bank_detail_id,
-        project_id,
-        reference,
-        subject,
-        job,
-        contact_person,
-        invoice_date,
-        due_date,
-        subtotal,
-        discount_pct,
-        discount_amt,
-        after_discount,
-        tds_pct,
-        tds_amt,
-        tax_pct,
-        tax_amt,
-        vat_pct,
-        vat_amt,
-        total_gst_amt,
-        adjustment,
-        total,
-        currency_code,
-        exchange_rate,
-        subtotal_usd,
-        total_usd,
-        invoice_exchange_date,
-        notes,
-        terms,
-        created_by,
-        balance_due,
-        hsn_sac
-      )
-      VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `,
-      [
-        invoiceNumber,
-        customer_id,
-        address_id || null,
-        bank_detail_id || null,
-        project_id || null,
-        reference || null,
-        job || null,
-        job || null,
-        contact_person || null,
-        invoice_date,
-        due_date,
-        subtotal,
-        discount_pct,
-        discount_amt,
-        after_discount,
-        tds_pct,
-        tds_amt,
-        Number(tax_pct) || 0,
-        calc_tax_amt,
-        Number(vat_pct) || 0,
-        calc_vat_amt,
-        total_gst_amt,
-        adjustment,
-        total,
-        customerCurrency,
-        exchangeRate,
-        subtotalUSD,
-        totalUSD,
-        new Date(),
-        notes,
-        terms,
-        userId,
-        total,
-        finalHsnSac, // ★ Use the sanitized value
-      ],
-    );
+//       -- ✅ Customer billing address
+//       LEFT JOIN zv_customer_addresses ca
+//         ON ca.customer_id = c.id
+//        AND ca.address_type = 'billing'
 
-    const invoiceId = invoiceResult.insertId;
+//       -- Company Address
+//       LEFT JOIN zv_company_addresses sa
+//         ON sa.id = i.address_id
 
-    /* ── Insert Items ── */
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const amount = Number(item.quantity) * Number(item.rate);
-      await conn.query(
-        `INSERT INTO zv_invoice_items
-         (invoice_id, description, quantity, rate, amount, sort_order)
-         VALUES (?,?,?,?,?,?)`,
-        [invoiceId, item.description, item.quantity, item.rate, amount, i + 1],
-      );
-    }
+//       -- Bank
+//       LEFT JOIN zv_bank_details bd
+//         ON bd.id = i.bank_detail_id
 
-    /* ── Insert GST Lines (India only) ── */
-    for (let i = 0; i < gst_lines.length; i++) {
-      const gst = gst_lines[i];
-      const gstAmount = after_discount * (gst.rate / 100);
-      await conn.query(
-        `INSERT INTO zv_invoice_gst_lines
-         (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
-         VALUES (?,?,?,?,?,?)`,
-        [
-          invoiceId,
-          gst.gst_type,
-          gst.rate,
-          gst.is_custom || 0,
-          gstAmount,
-          i + 1,
-        ],
-      );
-    }
+//       ORDER BY i.created_at DESC
+//     `);
 
-    await conn.commit();
+//     res.json({
+//       success: true,
+//       total: rows.length,
+//       data: rows,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
 
-    res.json({
-      success: true,
-      message: "Invoice created successfully",
-      invoice_id: invoiceId,
-      invoice_number: invoiceNumber,
-    });
-  } catch (error) {
-    await conn.rollback();
-    console.error('Error creating invoice:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  } finally {
-    conn.release();
-  }
-};
-
-
-
-exports.updateInvoice = async (req, res) => {
-  const conn = await db.promise().getConnection();
-
-  try {
-    await conn.beginTransaction();
-
-    const { id } = req.params;
-
-    const {
-      customer_id,
-      address_id,
-      bank_detail_id,
-      project_id,
-      job,
-      contact_person,
-      invoice_date,
-      due_date,
-      discount_pct = 0,
-      tds_pct = 0,
-      adjustment = 0,
-      notes,
-      terms,
-      status,
-      tax_pct = 0,
-      vat_pct = 0,
-      items = [],
-      gst_lines = [],
-    } = req.body;
-
-    /* ── Recalculate ── */
-    let subtotal = 0;
-    items.forEach((item) => {
-      subtotal += Number(item.quantity) * Number(item.rate);
-    });
-
-    const discount_amt = subtotal * (discount_pct / 100);
-    const after_discount = subtotal - discount_amt;
-    const tds_amt = after_discount * (tds_pct / 100);
-
-    let total_gst_amt = 0;
-    gst_lines.forEach((g) => {
-      total_gst_amt += after_discount * (g.rate / 100);
-    });
-
-    const calc_tax_amt = after_discount * (Number(tax_pct) / 100);
-    const calc_vat_amt = after_discount * (Number(vat_pct) / 100);
-
-    const total =
-      after_discount -
-      tds_amt +
-      total_gst_amt +
-      calc_tax_amt +
-      calc_vat_amt +
-      Number(adjustment);
-
-    /* ── Update Invoice ── */
-    await conn.query(
-      `UPDATE zv_invoices SET
-        customer_id    = ?,
-        address_id     = ?,
-        bank_detail_id = ?,
-        project_id     = ?,
-        job            = ?,
-        subject        = ?,
-        contact_person = ?,
-        invoice_date   = ?,
-        due_date       = ?,
-        subtotal       = ?,
-        discount_pct   = ?,
-        discount_amt   = ?,
-        after_discount = ?,
-        tds_pct        = ?,
-        tds_amt        = ?,
-        tax_pct        = ?,
-        tax_amt        = ?,
-        vat_pct        = ?,
-        vat_amt        = ?,
-        total_gst_amt  = ?,
-        adjustment     = ?,
-        total          = ?,
-        notes          = ?,
-        terms          = ?,
-        status         = ?
-       WHERE id = ?`,
-      [
-        customer_id,
-        address_id || null,
-        bank_detail_id || null,
-        project_id || null,
-        job || null,
-        job || null, // keep subject in sync
-        contact_person || null,
-        invoice_date,
-        due_date,
-        subtotal,
-        discount_pct,
-        discount_amt,
-        after_discount,
-        tds_pct,
-        tds_amt,
-        Number(tax_pct) || 0,
-        calc_tax_amt,
-        Number(vat_pct) || 0,
-        calc_vat_amt,
-        total_gst_amt,
-        adjustment,
-        total,
-        notes,
-        terms,
-        status,
-        id,
-      ],
-    );
-
-    /* ── Replace Items ── */
-    await conn.query(`DELETE FROM zv_invoice_items WHERE invoice_id = ?`, [id]);
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const amount = Number(item.quantity) * Number(item.rate);
-      await conn.query(
-        `INSERT INTO zv_invoice_items (invoice_id, description, quantity, rate, amount, sort_order) VALUES (?,?,?,?,?,?)`,
-        [id, item.description, item.quantity, item.rate, amount, i + 1],
-      );
-    }
-
-    /* ── Replace GST Lines ── */
-    await conn.query(`DELETE FROM zv_invoice_gst_lines WHERE invoice_id = ?`, [
-      id,
-    ]);
-    for (let i = 0; i < gst_lines.length; i++) {
-      const gst = gst_lines[i];
-      const gstAmount = after_discount * (gst.rate / 100);
-      await conn.query(
-        `INSERT INTO zv_invoice_gst_lines (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order) VALUES (?,?,?,?,?,?)`,
-        [id, gst.gst_type, gst.rate, gst.is_custom || 0, gstAmount, i + 1],
-      );
-    }
-
-    await conn.commit();
-    res.json({ success: true, message: "Invoice updated successfully" });
-  } catch (error) {
-    await conn.rollback();
-    res.status(500).json({ success: false, message: error.message });
-  } finally {
-    conn.release();
-  }
-};
-
-exports.getAllInvoices = async (req, res) => {
-  try {
-    // ✅ Auto mark overdue
-    await db.promise().query(`
-      UPDATE zv_invoices
-      SET status = 'overdue'
-      WHERE due_date < CURDATE()
-      AND status NOT IN ('paid','cancelled','overdue')
-    `);
-
-    // ✅ Get invoices
-    const [rows] = await db.promise().query(`
-      SELECT
-        i.id,
-        i.invoice_number,
-
-        -- Customer
-        c.name AS customer_name,
-        c.company_name AS customer_company,
-        c.currency AS customer_currency,
-        c.id AS customer_id,
-
-        -- ✅ Customer Billing Country
-        ca.country AS customer_country,
-
-        -- Company Address
-        sa.city AS company_addr_city,
-        sa.country AS company_addr_country,
-
-        -- Bank
-        bd.bank_name,
-        bd.account_number AS bank_account_number,
-
-        -- Invoice
-        i.reference,
-        i.invoice_date,
-        i.due_date,
-        i.subtotal,
-        i.total,
-        i.status,
-        i.created_at,
-        i.total_paid,
-        i.balance_due,
-        i.quote_number
-
-      FROM zv_invoices i
-
-      JOIN zv_customers c
-        ON c.id = i.customer_id
-
-      -- ✅ Customer billing address
-      LEFT JOIN zv_customer_addresses ca
-        ON ca.customer_id = c.id
-       AND ca.address_type = 'billing'
-
-      -- Company Address
-      LEFT JOIN zv_company_addresses sa
-        ON sa.id = i.address_id
-
-      -- Bank
-      LEFT JOIN zv_bank_details bd
-        ON bd.id = i.bank_detail_id
-
-      ORDER BY i.created_at DESC
-    `);
-
-    res.json({
-      success: true,
-      total: rows.length,
-      data: rows,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
 
 // exports.getInvoiceById = async (req, res) => {
 //   try {
@@ -763,6 +503,7 @@ exports.getAllInvoices = async (req, res) => {
 //     const [invoiceRows] = await db.promise().query(
 //       `SELECT
 //         i.*,
+//         i.hsn_sac,  -- ★ Explicitly include hsn_sac
 
 //         -- Customer
 //         c.name         AS customer_name,
@@ -903,7 +644,10 @@ exports.getAllInvoices = async (req, res) => {
 //       success: true,
 
 //       data: {
-//         invoice,
+//         invoice: {
+//           ...invoice,
+//           hsn_sac: invoice.hsn_sac || null, // ★ Ensure hsn_sac is included
+//         },
 
 //         project: invoice.project_id
 //           ? {
@@ -940,6 +684,7 @@ exports.getAllInvoices = async (req, res) => {
 //       },
 //     });
 //   } catch (error) {
+//     console.error('Error fetching invoice:', error);
 //     res.status(500).json({
 //       success: false,
 //       message: error.message,
@@ -948,20 +693,1010 @@ exports.getAllInvoices = async (req, res) => {
 // };
 
 
-//get invoce with hsn/sac number and other details
+
+// exports.updateInvoice = async (req, res) => {
+//   const conn = await db.promise().getConnection();
+
+//   try {
+//     await conn.beginTransaction();
+
+//     const invoiceId = req.params.id;
+
+//     const {
+//       customer_id,
+//       address_id,
+//       bank_detail_id,
+//       reference,
+//       invoice_date,
+//       due_date,
+//       subject,
+//       job,
+//       contact_person,
+//       discount_pct = 0,
+//       tds_pct = 0,
+//       adjustment = 0,
+//       notes,
+//       terms,
+//       items = [],
+//       gst_lines = [],
+//       tax_pct = 0,
+//       vat_pct = 0,
+//       hsn_sac = null, // ★ NEW field for Indian customers
+//     } = req.body;
+
+//     /* CHECK IF INVOICE EXISTS */
+//     const [check] = await conn.query("SELECT id FROM zv_invoices WHERE id=?", [
+//       invoiceId,
+//     ]);
+
+//     if (check.length === 0) {
+//       await conn.rollback();
+//       return res.status(404).json({
+//         success: false,
+//         message: "Invoice not found",
+//       });
+//     }
+
+//     /* CALCULATE TOTALS */
+//     let subtotal = 0;
+//     items.forEach((item) => {
+//       subtotal += Number(item.quantity) * Number(item.rate);
+//     });
+
+//     const discount_amt = subtotal * (discount_pct / 100);
+//     const after_discount = subtotal - discount_amt;
+//     const tds_amt = after_discount * (tds_pct / 100);
+
+//     let total_gst_amt = 0;
+//     gst_lines.forEach((g) => {
+//       total_gst_amt += after_discount * (g.rate / 100);
+//     });
+
+//     // Calculate tax and VAT amounts
+//     const tax_amt = after_discount * (tax_pct / 100);
+//     const vat_amt = after_discount * (vat_pct / 100);
+
+//     const total =
+//       after_discount -
+//       tds_amt +
+//       total_gst_amt +
+//       tax_amt +
+//       vat_amt +
+//       Number(adjustment);
+
+//     // Get customer currency
+//     const [customerRows] = await conn.query(
+//       `SELECT currency FROM zv_customers WHERE id = ?`,
+//       [customer_id],
+//     );
+
+//     const customerCurrency = customerRows[0]?.currency || "USD";
+
+//     // Convert to USD
+//     const exchangeRate = await getRate(customerCurrency);
+//     const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
+//     const totalUSD = Number((total / exchangeRate).toFixed(2));
+
+//     // Get total paid amount for balance due calculation
+//     const [paymentRows] = await conn.query(
+//       `SELECT COALESCE(SUM(amount), 0) as paid_amount 
+//        FROM zv_payments 
+//        WHERE invoice_id = ? AND status IN ('completed', 'success', 'paid')`,
+//       [invoiceId],
+//     );
+
+//     const paidAmount = Number(paymentRows[0]?.paid_amount) || 0;
+//     const balanceDue = total - paidAmount;
+
+//     // ★ Sanitize HSN/SAC - only for Indian customers
+//     const finalHsnSac = (hsn_sac && hsn_sac.trim() !== '') ? hsn_sac.trim() : null;
+
+//     /* UPDATE INVOICE HEADER */
+//     await conn.query(
+//       `UPDATE zv_invoices SET
+//         customer_id = ?,
+//         address_id = ?,
+//         bank_detail_id = ?,
+//         project_id = ?,
+
+//         reference = ?,
+//         invoice_date = ?,
+//         due_date = ?,
+//         subject = ?,
+//         job = ?,
+//         contact_person = ?,
+
+//         subtotal = ?,
+//         discount_pct = ?,
+//         discount_amt = ?,
+//         after_discount = ?,
+
+//         tds_pct = ?,
+//         tds_amt = ?,
+
+//         tax_pct = ?,
+//         tax_amt = ?,
+
+//         vat_pct = ?,
+//         vat_amt = ?,
+
+//         total_gst_amt = ?,
+//         adjustment = ?,
+//         total = ?,
+
+//         currency_code = ?,
+//         exchange_rate = ?,
+//         subtotal_usd = ?,
+//         total_usd = ?,
+//         invoice_exchange_date = ?,
+
+//         notes = ?,
+//         terms = ?,
+//         status = ?,
+
+//         balance_due = ?,
+        
+//         hsn_sac = ?  -- ★ Added HSN/SAC field
+
+//       WHERE id = ?`,
+//       [
+//         customer_id,
+//         address_id || null,
+//         bank_detail_id || null,
+//         req.body.project_id || null,
+
+//         reference,
+//         invoice_date,
+//         due_date,
+//         subject,
+//         job || null,
+//         contact_person || null,
+
+//         subtotal,
+//         discount_pct,
+//         discount_amt,
+//         after_discount,
+
+//         tds_pct,
+//         tds_amt,
+
+//         tax_pct || 0,
+//         tax_amt,
+
+//         vat_pct || 0,
+//         vat_amt,
+
+//         total_gst_amt,
+//         adjustment,
+//         total,
+
+//         customerCurrency,
+//         exchangeRate,
+//         subtotalUSD,
+//         totalUSD,
+//         new Date(),
+
+//         notes,
+//         terms,
+//         req.body.status || "sent",
+
+//         balanceDue, // Updated balance due
+        
+//         finalHsnSac, // ★ HSN/SAC value
+        
+//         invoiceId,
+//       ],
+//     );
+
+//     /* =========================
+//        ITEMS SYNC LOGIC
+//        ========================= */
+//     const [existingItems] = await conn.query(
+//       "SELECT id FROM zv_invoice_items WHERE invoice_id = ?",
+//       [invoiceId],
+//     );
+
+//     const existingIds = existingItems.map((i) => i.id);
+//     const requestIds = items.filter((i) => i.id).map((i) => i.id);
+
+//     const itemsToDelete = existingIds.filter((id) => !requestIds.includes(id));
+
+//     for (let id of itemsToDelete) {
+//       await conn.query("DELETE FROM zv_invoice_items WHERE id = ?", [id]);
+//     }
+
+//     for (let i = 0; i < items.length; i++) {
+//       const item = items[i];
+//       const amount = Number(item.quantity) * Number(item.rate);
+
+//       if (item.id) {
+//         await conn.query(
+//           `UPDATE zv_invoice_items
+//            SET description = ?, quantity = ?, rate = ?, amount = ?, sort_order = ?
+//            WHERE id = ?`,
+//           [item.description, item.quantity, item.rate, amount, i + 1, item.id],
+//         );
+//       } else {
+//         await conn.query(
+//           `INSERT INTO zv_invoice_items
+//            (invoice_id, description, quantity, rate, amount, sort_order)
+//            VALUES (?, ?, ?, ?, ?, ?)`,
+//           [
+//             invoiceId,
+//             item.description,
+//             item.quantity,
+//             item.rate,
+//             amount,
+//             i + 1,
+//           ],
+//         );
+//       }
+//     }
+
+//     /* =========================
+//        GST SYNC LOGIC
+//        ========================= */
+//     const [existingGST] = await conn.query(
+//       "SELECT id FROM zv_invoice_gst_lines WHERE invoice_id = ?",
+//       [invoiceId],
+//     );
+
+//     const existingGstIds = existingGST.map((g) => g.id);
+//     const requestGstIds = gst_lines.filter((g) => g.id).map((g) => g.id);
+
+//     const gstToDelete = existingGstIds.filter(
+//       (id) => !requestGstIds.includes(id),
+//     );
+
+//     for (let id of gstToDelete) {
+//       await conn.query("DELETE FROM zv_invoice_gst_lines WHERE id = ?", [id]);
+//     }
+
+//     for (let i = 0; i < gst_lines.length; i++) {
+//       const gst = gst_lines[i];
+//       const gstAmount = after_discount * (gst.rate / 100);
+
+//       if (gst.id) {
+//         await conn.query(
+//           `UPDATE zv_invoice_gst_lines
+//            SET gst_type = ?, rate = ?, is_custom = ?, gst_amount = ?, sort_order = ?
+//            WHERE id = ?`,
+//           [
+//             gst.gst_type,
+//             gst.rate,
+//             gst.is_custom || 0,
+//             gstAmount,
+//             i + 1,
+//             gst.id,
+//           ],
+//         );
+//       } else {
+//         await conn.query(
+//           `INSERT INTO zv_invoice_gst_lines
+//            (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
+//            VALUES (?, ?, ?, ?, ?, ?)`,
+//           [
+//             invoiceId,
+//             gst.gst_type,
+//             gst.rate,
+//             gst.is_custom || 0,
+//             gstAmount,
+//             i + 1,
+//           ],
+//         );
+//       }
+//     }
+
+//     await conn.commit();
+
+//     res.json({
+//       success: true,
+//       message: "Invoice updated successfully",
+//       data: {
+//         invoice_id: invoiceId,
+//         total: total,
+//         balance_due: balanceDue,
+//         hsn_sac: finalHsnSac, // ★ Return updated HSN/SAC
+//       },
+//     });
+//   } catch (error) {
+//     await conn.rollback();
+//     console.error("Update invoice error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   } finally {
+//     conn.release();
+//   }
+// };
+
+
+// --- Controller: invoices (updated to support lut_arn) ---
+
+exports.createInvoice = async (req, res) => {
+  const conn = await db.promise().getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const userId = req.user.id;
+
+    const {
+      customer_id,
+      country_code,
+      address_id,
+      project_id,
+      bank_detail_id,
+      reference,
+      job,
+      contact_person,
+      invoice_date,
+      due_date,
+      discount_pct = 0,
+      tds_pct = 0,
+      adjustment = 0,
+      notes,
+      terms,
+      tax_pct = 0,
+      tax_amt = 0,
+      vat_pct = 0,
+      vat_amt = 0,
+      items = [],
+      gst_lines = [],
+      hsn_sac = null, // ★ NEW field (already present)
+      lut_arn = null, // ★ NEW LUT/ARN field from client
+    } = req.body;
+
+    // ★ Debug logging
+    console.log('Creating invoice with data:', {
+      customer_id,
+      country_code,
+      hsn_sac,
+      lut_arn,
+      items_count: items.length,
+      gst_lines_count: gst_lines.length,
+      isIndian: country_code?.toUpperCase() === 'IN'
+    });
+
+    const [customerRows] = await conn.query(
+      `SELECT currency FROM zv_customers WHERE id = ?`,
+      [customer_id],
+    );
+
+    if (!customerRows || customerRows.length === 0) {
+      throw new Error('Customer not found');
+    }
+
+    const customerCurrency = customerRows[0]?.currency || "USD";
+
+    /* ── Generate Invoice Number ── */
+    let invoiceNumber;
+
+    if (country_code) {
+      const [seqRows] = await conn.query(
+        `SELECT id, prefix, current_number
+         FROM zv_invoice_sequences
+         WHERE country_code = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [country_code.toUpperCase()],
+      );
+
+      if (seqRows.length) {
+        const seq = seqRows[0];
+        const nextNum = seq.current_number + 1;
+
+        invoiceNumber = `${seq.prefix}${String(nextNum).padStart(4, "0")}`;
+        await conn.query(
+          `UPDATE zv_invoice_sequences SET current_number = ? WHERE id = ?`,
+          [nextNum, seq.id],
+        );
+      }
+    }
+
+    if (!invoiceNumber) {
+      invoiceNumber = "INV-" + Date.now().toString().slice(-6);
+    }
+
+    /* ── Calculations ── */
+    let subtotal = 0;
+    items.forEach((item) => {
+      subtotal += Number(item.quantity) * Number(item.rate);
+    });
+
+    const discount_amt = subtotal * (discount_pct / 100);
+    const after_discount = subtotal - discount_amt;
+    const tds_amt = after_discount * (tds_pct / 100);
+
+    // India GST
+    let total_gst_amt = 0;
+    gst_lines.forEach((g) => {
+      total_gst_amt += after_discount * (g.rate / 100);
+    });
+
+    const calc_tax_amt = after_discount * (Number(tax_pct) / 100);
+    const calc_vat_amt = after_discount * (Number(vat_pct) / 100);
+
+    const total =
+      after_discount -
+      tds_amt +
+      total_gst_amt +
+      calc_tax_amt +
+      calc_vat_amt +
+      Number(adjustment);
+
+    const exchangeRate = await getRate(customerCurrency);
+
+    const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
+    const totalUSD = Number((total / exchangeRate).toFixed(2));
+
+    // ★ Ensure hsn_sac is null if not provided or empty
+    const finalHsnSac = (hsn_sac && String(hsn_sac).trim() !== '') ? String(hsn_sac).trim() : null;
+    // ★ Ensure lut_arn is null if not provided or empty
+    const finalLutArn = (lut_arn && String(lut_arn).trim() !== '') ? String(lut_arn).trim() : null;
+
+    // ★ Log the final query parameters for debugging
+    console.log('Inserting invoice with HSN/SAC:', finalHsnSac, 'LUT/ARN:', finalLutArn);
+
+    const [invoiceResult] = await conn.query(
+      `INSERT INTO zv_invoices
+      (
+        invoice_number,
+        customer_id,
+        address_id,
+        bank_detail_id,
+        project_id,
+        reference,
+        subject,
+        job,
+        contact_person,
+        invoice_date,
+        due_date,
+        subtotal,
+        discount_pct,
+        discount_amt,
+        after_discount,
+        tds_pct,
+        tds_amt,
+        tax_pct,
+        tax_amt,
+        vat_pct,
+        vat_amt,
+        total_gst_amt,
+        adjustment,
+        total,
+        currency_code,
+        exchange_rate,
+        subtotal_usd,
+        total_usd,
+        invoice_exchange_date,
+        notes,
+        terms,
+        created_by,
+        balance_due,
+        hsn_sac,
+        lut_arn
+      )
+      VALUES
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `,
+      [
+        invoiceNumber,
+        customer_id,
+        address_id || null,
+        bank_detail_id || null,
+        project_id || null,
+        reference || null,
+        job || null,
+        job || null,
+        contact_person || null,
+        invoice_date,
+        due_date,
+        subtotal,
+        discount_pct,
+        discount_amt,
+        after_discount,
+        tds_pct,
+        tds_amt,
+        Number(tax_pct) || 0,
+        calc_tax_amt,
+        Number(vat_pct) || 0,
+        calc_vat_amt,
+        total_gst_amt,
+        adjustment,
+        total,
+        customerCurrency,
+        exchangeRate,
+        subtotalUSD,
+        totalUSD,
+        new Date(),
+        notes || null,
+        terms || null,
+        userId,
+        total,
+        finalHsnSac, // hsn_sac
+        finalLutArn, // lut_arn
+      ],
+    );
+
+    const invoiceId = invoiceResult.insertId;
+
+    /* ── Insert Items ── */
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const amount = Number(item.quantity) * Number(item.rate);
+      await conn.query(
+        `INSERT INTO zv_invoice_items
+         (invoice_id, description, quantity, rate, amount, sort_order)
+         VALUES (?,?,?,?,?,?)`,
+        [invoiceId, item.description, item.quantity, item.rate, amount, i + 1],
+      );
+    }
+
+    /* ── Insert GST Lines (India only) ── */
+    for (let i = 0; i < gst_lines.length; i++) {
+      const gst = gst_lines[i];
+      const gstAmount = after_discount * (gst.rate / 100);
+      await conn.query(
+        `INSERT INTO zv_invoice_gst_lines
+         (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
+         VALUES (?,?,?,?,?,?)`,
+        [
+          invoiceId,
+          gst.gst_type,
+          gst.rate,
+          gst.is_custom || 0,
+          gstAmount,
+          i + 1,
+        ],
+      );
+    }
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: "Invoice created successfully",
+      invoice_id: invoiceId,
+      invoice_number: invoiceNumber,
+      lut_arn: finalLutArn,
+      hsn_sac: finalHsnSac,
+    });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error creating invoice:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  } finally {
+    conn.release();
+  }
+};
+
+
+exports.updateInvoice = async (req, res) => {
+  const conn = await db.promise().getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const invoiceId = req.params.id;
+
+    const {
+      customer_id,
+      address_id,
+      bank_detail_id,
+      project_id,
+      job,
+      contact_person,
+      invoice_date,
+      due_date,
+      discount_pct = 0,
+      tds_pct = 0,
+      adjustment = 0,
+      notes,
+      terms,
+      status,
+      tax_pct = 0,
+      vat_pct = 0,
+      items = [],
+      gst_lines = [],
+      hsn_sac = null, // ★ may be provided
+      lut_arn = null, // ★ NEW field accepted on update
+    } = req.body;
+
+    /* CHECK IF INVOICE EXISTS */
+    const [check] = await conn.query("SELECT id FROM zv_invoices WHERE id=?", [
+      invoiceId,
+    ]);
+
+    if (check.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    /* CALCULATE TOTALS */
+    let subtotal = 0;
+    items.forEach((item) => {
+      subtotal += Number(item.quantity) * Number(item.rate);
+    });
+
+    const discount_amt = subtotal * (discount_pct / 100);
+    const after_discount = subtotal - discount_amt;
+    const tds_amt = after_discount * (tds_pct / 100);
+
+    let total_gst_amt = 0;
+    gst_lines.forEach((g) => {
+      total_gst_amt += after_discount * (g.rate / 100);
+    });
+
+    // Calculate tax and VAT amounts
+    const tax_amt = after_discount * (tax_pct / 100);
+    const vat_amt = after_discount * (vat_pct / 100);
+
+    const total =
+      after_discount -
+      tds_amt +
+      total_gst_amt +
+      tax_amt +
+      vat_amt +
+      Number(adjustment);
+
+    // Get customer currency
+    const [customerRows] = await conn.query(
+      `SELECT currency FROM zv_customers WHERE id = ?`,
+      [customer_id],
+    );
+
+    const customerCurrency = customerRows[0]?.currency || "USD";
+
+    // Convert to USD
+    const exchangeRate = await getRate(customerCurrency);
+    const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
+    const totalUSD = Number((total / exchangeRate).toFixed(2));
+
+    // Get total paid amount for balance due calculation
+    const [paymentRows] = await conn.query(
+      `SELECT COALESCE(SUM(amount), 0) as paid_amount 
+       FROM zv_payments 
+       WHERE invoice_id = ? AND status IN ('completed', 'success', 'paid')`,
+      [invoiceId],
+    );
+
+    const paidAmount = Number(paymentRows[0]?.paid_amount) || 0;
+    const balanceDue = total - paidAmount;
+
+    // ★ Sanitize HSN/SAC and LUT/ARN
+    const finalHsnSac = (hsn_sac && String(hsn_sac).trim() !== '') ? String(hsn_sac).trim() : null;
+    const finalLutArn = (lut_arn && String(lut_arn).trim() !== '') ? String(lut_arn).trim() : null;
+
+    /* UPDATE INVOICE HEADER */
+    await conn.query(
+      `UPDATE zv_invoices SET
+        customer_id = ?,
+        address_id = ?,
+        bank_detail_id = ?,
+        project_id = ?,
+
+        reference = ?,
+        invoice_date = ?,
+        due_date = ?,
+        subject = ?,
+        job = ?,
+        contact_person = ?,
+
+        subtotal = ?,
+        discount_pct = ?,
+        discount_amt = ?,
+        after_discount = ?,
+
+        tds_pct = ?,
+        tds_amt = ?,
+
+        tax_pct = ?,
+        tax_amt = ?,
+
+        vat_pct = ?,
+        vat_amt = ?,
+
+        total_gst_amt = ?,
+        adjustment = ?,
+        total = ?,
+
+        currency_code = ?,
+        exchange_rate = ?,
+        subtotal_usd = ?,
+        total_usd = ?,
+        invoice_exchange_date = ?,
+
+        notes = ?,
+        terms = ?,
+        status = ?,
+
+        balance_due = ?,
+
+        hsn_sac = ?,
+        lut_arn = ?
+
+      WHERE id = ?`,
+      [
+        customer_id,
+        address_id || null,
+        bank_detail_id || null,
+        project_id || null,
+
+        req.body.reference || null,
+        invoice_date,
+        due_date,
+        req.body.subject || null,
+        job || null,
+        contact_person || null,
+
+        subtotal,
+        discount_pct,
+        discount_amt,
+        after_discount,
+
+        tds_pct,
+        tds_amt,
+
+        Number(tax_pct) || 0,
+        tax_amt,
+
+        Number(vat_pct) || 0,
+        vat_amt,
+
+        total_gst_amt,
+        adjustment,
+        total,
+
+        customerCurrency,
+        exchangeRate,
+        subtotalUSD,
+        totalUSD,
+        new Date(),
+
+        notes || null,
+        terms || null,
+        status || "sent",
+
+        balanceDue,
+
+        finalHsnSac,
+        finalLutArn,
+
+        invoiceId,
+      ],
+    );
+
+    /* =========================
+       ITEMS SYNC LOGIC
+       ========================= */
+    const [existingItems] = await conn.query(
+      "SELECT id FROM zv_invoice_items WHERE invoice_id = ?",
+      [invoiceId],
+    );
+
+    const existingIds = existingItems.map((i) => i.id);
+    const requestIds = items.filter((i) => i.id).map((i) => i.id);
+
+    const itemsToDelete = existingIds.filter((id) => !requestIds.includes(id));
+
+    for (let id of itemsToDelete) {
+      await conn.query("DELETE FROM zv_invoice_items WHERE id = ?", [id]);
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const amount = Number(item.quantity) * Number(item.rate);
+
+      if (item.id) {
+        await conn.query(
+          `UPDATE zv_invoice_items
+           SET description = ?, quantity = ?, rate = ?, amount = ?, sort_order = ?
+           WHERE id = ?`,
+          [item.description, item.quantity, item.rate, amount, i + 1, item.id],
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO zv_invoice_items
+           (invoice_id, description, quantity, rate, amount, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            invoiceId,
+            item.description,
+            item.quantity,
+            item.rate,
+            amount,
+            i + 1,
+          ],
+        );
+      }
+    }
+
+    /* =========================
+       GST SYNC LOGIC
+       ========================= */
+    const [existingGST] = await conn.query(
+      "SELECT id FROM zv_invoice_gst_lines WHERE invoice_id = ?",
+      [invoiceId],
+    );
+
+    const existingGstIds = existingGST.map((g) => g.id);
+    const requestGstIds = gst_lines.filter((g) => g.id).map((g) => g.id);
+
+    const gstToDelete = existingGstIds.filter(
+      (id) => !requestGstIds.includes(id),
+    );
+
+    for (let id of gstToDelete) {
+      await conn.query("DELETE FROM zv_invoice_gst_lines WHERE id = ?", [id]);
+    }
+
+    for (let i = 0; i < gst_lines.length; i++) {
+      const gst = gst_lines[i];
+      const gstAmount = after_discount * (gst.rate / 100);
+
+      if (gst.id) {
+        await conn.query(
+          `UPDATE zv_invoice_gst_lines
+           SET gst_type = ?, rate = ?, is_custom = ?, gst_amount = ?, sort_order = ?
+           WHERE id = ?`,
+          [
+            gst.gst_type,
+            gst.rate,
+            gst.is_custom || 0,
+            gstAmount,
+            i + 1,
+            gst.id,
+          ],
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO zv_invoice_gst_lines
+           (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            invoiceId,
+            gst.gst_type,
+            gst.rate,
+            gst.is_custom || 0,
+            gstAmount,
+            i + 1,
+          ],
+        );
+      }
+    }
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: {
+        invoice_id: invoiceId,
+        total: total,
+        balance_due: balanceDue,
+        hsn_sac: finalHsnSac,
+        lut_arn: finalLutArn,
+      },
+    });
+  } catch (error) {
+    await conn.rollback();
+    console.error("Update invoice error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  } finally {
+    conn.release();
+  }
+};
+
+
+exports.getAllInvoices = async (req, res) => {
+  try {
+    // ✅ Auto mark overdue
+    await db.promise().query(`
+      UPDATE zv_invoices
+      SET status = 'overdue'
+      WHERE due_date < CURDATE()
+      AND status NOT IN ('paid','cancelled','overdue')
+    `);
+
+    // ✅ Get invoices (now includes lut_arn)
+    const [rows] = await db.promise().query(`
+      SELECT
+        i.id,
+        i.invoice_number,
+
+        -- Customer
+        c.name AS customer_name,
+        c.company_name AS customer_company,
+        c.currency AS customer_currency,
+        c.id AS customer_id,
+
+        -- ✅ Customer Billing Country
+        ca.country AS customer_country,
+
+        -- Company Address
+        sa.city AS company_addr_city,
+        sa.country AS company_addr_country,
+
+        -- Bank
+        bd.bank_name,
+        bd.account_number AS bank_account_number,
+
+        -- Invoice
+        i.reference,
+        i.invoice_date,
+        i.due_date,
+        i.subtotal,
+        i.total,
+        i.status,
+        i.created_at,
+        i.total_paid,
+        i.balance_due,
+        i.quote_number,
+
+        -- NEW: lut_arn (company-side value stored on invoice)
+        i.lut_arn
+
+      FROM zv_invoices i
+
+      JOIN zv_customers c
+        ON c.id = i.customer_id
+
+      -- ✅ Customer billing address
+      LEFT JOIN zv_customer_addresses ca
+        ON ca.customer_id = c.id
+       AND ca.address_type = 'billing'
+
+      -- Company Address
+      LEFT JOIN zv_company_addresses sa
+        ON sa.id = i.address_id
+
+      -- Bank
+      LEFT JOIN zv_bank_details bd
+        ON bd.id = i.bank_detail_id
+
+      ORDER BY i.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      total: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 exports.getInvoiceById = async (req, res) => {
   try {
     const invoiceId = req.params.id;
 
     // =========================
-    // MAIN INVOICE
+    // MAIN INVOICE (include lut_arn and hsn_sac)
     // =========================
 
     const [invoiceRows] = await db.promise().query(
       `SELECT
         i.*,
         i.hsn_sac,  -- ★ Explicitly include hsn_sac
+        i.lut_arn,  -- ★ Explicitly include lut_arn
 
         -- Customer
         c.name         AS customer_name,
@@ -1105,6 +1840,7 @@ exports.getInvoiceById = async (req, res) => {
         invoice: {
           ...invoice,
           hsn_sac: invoice.hsn_sac || null, // ★ Ensure hsn_sac is included
+          lut_arn: invoice.lut_arn || null,  // ★ Ensure lut_arn is included
         },
 
         project: invoice.project_id
@@ -1149,635 +1885,6 @@ exports.getInvoiceById = async (req, res) => {
     });
   }
 };
-
-// exports.updateInvoice = async (req, res) => {
-//   const conn = await db.promise().getConnection();
-
-//   try {
-//     await conn.beginTransaction();
-
-//     const invoiceId = req.params.id;
-
-//     const {
-//       customer_id,
-//       address_id,
-//       bank_detail_id,
-//       reference,
-//       invoice_date,
-//       due_date,
-//       subject,
-//       job,
-//       contact_person,
-//       discount_pct = 0,
-//       tds_pct = 0,
-//       adjustment = 0,
-//       notes,
-//       terms,
-//       items = [],
-//       gst_lines = [],
-//       tax_pct = 0,
-//       vat_pct = 0,
-//     } = req.body;
-
-//     /* CHECK IF INVOICE EXISTS */
-//     const [check] = await conn.query("SELECT id FROM zv_invoices WHERE id=?", [
-//       invoiceId,
-//     ]);
-
-//     if (check.length === 0) {
-//       await conn.rollback();
-//       return res.status(404).json({
-//         success: false,
-//         message: "Invoice not found",
-//       });
-//     }
-
-//     /* CALCULATE TOTALS */
-//     let subtotal = 0;
-//     items.forEach((item) => {
-//       subtotal += Number(item.quantity) * Number(item.rate);
-//     });
-
-//     const discount_amt = subtotal * (discount_pct / 100);
-//     const after_discount = subtotal - discount_amt;
-//     const tds_amt = after_discount * (tds_pct / 100);
-
-//     let total_gst_amt = 0;
-//     gst_lines.forEach((g) => {
-//       total_gst_amt += after_discount * (g.rate / 100);
-//     });
-
-//     // Calculate tax and VAT amounts
-//     const tax_amt = after_discount * (tax_pct / 100);
-//     const vat_amt = after_discount * (vat_pct / 100);
-
-//     const total =
-//       after_discount -
-//       tds_amt +
-//       total_gst_amt +
-//       tax_amt +
-//       vat_amt +
-//       Number(adjustment);
-
-//     // Get customer currency
-//     const [customerRows] = await conn.query(
-//       `SELECT currency FROM zv_customers WHERE id = ?`,
-//       [customer_id],
-//     );
-
-//     const customerCurrency = customerRows[0]?.currency || "USD";
-
-//     // Convert to USD
-//     const exchangeRate = await getRate(customerCurrency);
-//     const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
-//     const totalUSD = Number((total / exchangeRate).toFixed(2));
-
-//     // Get total paid amount for balance due calculation
-//     const [paymentRows] = await conn.query(
-//       `SELECT COALESCE(SUM(amount), 0) as paid_amount 
-//        FROM zv_payments 
-//        WHERE invoice_id = ? AND status IN ('completed', 'success', 'paid')`,
-//       [invoiceId],
-//     );
-
-//     const paidAmount = Number(paymentRows[0]?.paid_amount) || 0;
-//     const balanceDue = total - paidAmount;
-
-//     /* UPDATE INVOICE HEADER */
-//     await conn.query(
-//       `UPDATE zv_invoices SET
-//         customer_id = ?,
-//         address_id = ?,
-//         bank_detail_id = ?,
-//         project_id = ?,
-
-//         reference = ?,
-//         invoice_date = ?,
-//         due_date = ?,
-//         subject = ?,
-//         job = ?,
-//         contact_person = ?,
-
-//         subtotal = ?,
-//         discount_pct = ?,
-//         discount_amt = ?,
-//         after_discount = ?,
-
-//         tds_pct = ?,
-//         tds_amt = ?,
-
-//         tax_pct = ?,
-//         tax_amt = ?,
-
-//         vat_pct = ?,
-//         vat_amt = ?,
-
-//         total_gst_amt = ?,
-//         adjustment = ?,
-//         total = ?,
-
-//         currency_code = ?,
-//         exchange_rate = ?,
-//         subtotal_usd = ?,
-//         total_usd = ?,
-//         invoice_exchange_date = ?,
-
-//         notes = ?,
-//         terms = ?,
-//         status = ?,
-
-//         balance_due = ?
-
-//       WHERE id = ?`,
-//       [
-//         customer_id,
-//         address_id || null,
-//         bank_detail_id || null,
-//         req.body.project_id || null,
-
-//         reference,
-//         invoice_date,
-//         due_date,
-//         subject,
-//         job || null,
-//         contact_person || null,
-
-//         subtotal,
-//         discount_pct,
-//         discount_amt,
-//         after_discount,
-
-//         tds_pct,
-//         tds_amt,
-
-//         tax_pct || 0,
-//         tax_amt,
-
-//         vat_pct || 0,
-//         vat_amt,
-
-//         total_gst_amt,
-//         adjustment,
-//         total,
-
-//         customerCurrency,
-//         exchangeRate,
-//         subtotalUSD,
-//         totalUSD,
-//         new Date(),
-
-//         notes,
-//         terms,
-//         req.body.status || "sent",
-
-//         balanceDue, // Updated balance due
-//         invoiceId,
-//       ],
-//     );
-
-//     /* =========================
-//        ITEMS SYNC LOGIC
-//        ========================= */
-//     const [existingItems] = await conn.query(
-//       "SELECT id FROM zv_invoice_items WHERE invoice_id = ?",
-//       [invoiceId],
-//     );
-
-//     const existingIds = existingItems.map((i) => i.id);
-//     const requestIds = items.filter((i) => i.id).map((i) => i.id);
-
-//     const itemsToDelete = existingIds.filter((id) => !requestIds.includes(id));
-
-//     for (let id of itemsToDelete) {
-//       await conn.query("DELETE FROM zv_invoice_items WHERE id = ?", [id]);
-//     }
-
-//     for (let i = 0; i < items.length; i++) {
-//       const item = items[i];
-//       const amount = Number(item.quantity) * Number(item.rate);
-
-//       if (item.id) {
-//         await conn.query(
-//           `UPDATE zv_invoice_items
-//            SET description = ?, quantity = ?, rate = ?, amount = ?, sort_order = ?
-//            WHERE id = ?`,
-//           [item.description, item.quantity, item.rate, amount, i + 1, item.id],
-//         );
-//       } else {
-//         await conn.query(
-//           `INSERT INTO zv_invoice_items
-//            (invoice_id, description, quantity, rate, amount, sort_order)
-//            VALUES (?, ?, ?, ?, ?, ?)`,
-//           [
-//             invoiceId,
-//             item.description,
-//             item.quantity,
-//             item.rate,
-//             amount,
-//             i + 1,
-//           ],
-//         );
-//       }
-//     }
-
-//     /* =========================
-//        GST SYNC LOGIC
-//        ========================= */
-//     const [existingGST] = await conn.query(
-//       "SELECT id FROM zv_invoice_gst_lines WHERE invoice_id = ?",
-//       [invoiceId],
-//     );
-
-//     const existingGstIds = existingGST.map((g) => g.id);
-//     const requestGstIds = gst_lines.filter((g) => g.id).map((g) => g.id);
-
-//     const gstToDelete = existingGstIds.filter(
-//       (id) => !requestGstIds.includes(id),
-//     );
-
-//     for (let id of gstToDelete) {
-//       await conn.query("DELETE FROM zv_invoice_gst_lines WHERE id = ?", [id]);
-//     }
-
-//     for (let i = 0; i < gst_lines.length; i++) {
-//       const gst = gst_lines[i];
-//       const gstAmount = after_discount * (gst.rate / 100);
-
-//       if (gst.id) {
-//         await conn.query(
-//           `UPDATE zv_invoice_gst_lines
-//            SET gst_type = ?, rate = ?, is_custom = ?, gst_amount = ?, sort_order = ?
-//            WHERE id = ?`,
-//           [
-//             gst.gst_type,
-//             gst.rate,
-//             gst.is_custom || 0,
-//             gstAmount,
-//             i + 1,
-//             gst.id,
-//           ],
-//         );
-//       } else {
-//         await conn.query(
-//           `INSERT INTO zv_invoice_gst_lines
-//            (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
-//            VALUES (?, ?, ?, ?, ?, ?)`,
-//           [
-//             invoiceId,
-//             gst.gst_type,
-//             gst.rate,
-//             gst.is_custom || 0,
-//             gstAmount,
-//             i + 1,
-//           ],
-//         );
-//       }
-//     }
-
-//     await conn.commit();
-
-//     res.json({
-//       success: true,
-//       message: "Invoice updated successfully",
-//       data: {
-//         invoice_id: invoiceId,
-//         total: total,
-//         balance_due: balanceDue,
-//       },
-//     });
-//   } catch (error) {
-//     await conn.rollback();
-//     console.error("Update invoice error:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   } finally {
-//     conn.release();
-//   }
-// };
-
-
-//updaet inv with hsn/sac number and other details
-
-
-exports.updateInvoice = async (req, res) => {
-  const conn = await db.promise().getConnection();
-
-  try {
-    await conn.beginTransaction();
-
-    const invoiceId = req.params.id;
-
-    const {
-      customer_id,
-      address_id,
-      bank_detail_id,
-      reference,
-      invoice_date,
-      due_date,
-      subject,
-      job,
-      contact_person,
-      discount_pct = 0,
-      tds_pct = 0,
-      adjustment = 0,
-      notes,
-      terms,
-      items = [],
-      gst_lines = [],
-      tax_pct = 0,
-      vat_pct = 0,
-      hsn_sac = null, // ★ NEW field for Indian customers
-    } = req.body;
-
-    /* CHECK IF INVOICE EXISTS */
-    const [check] = await conn.query("SELECT id FROM zv_invoices WHERE id=?", [
-      invoiceId,
-    ]);
-
-    if (check.length === 0) {
-      await conn.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "Invoice not found",
-      });
-    }
-
-    /* CALCULATE TOTALS */
-    let subtotal = 0;
-    items.forEach((item) => {
-      subtotal += Number(item.quantity) * Number(item.rate);
-    });
-
-    const discount_amt = subtotal * (discount_pct / 100);
-    const after_discount = subtotal - discount_amt;
-    const tds_amt = after_discount * (tds_pct / 100);
-
-    let total_gst_amt = 0;
-    gst_lines.forEach((g) => {
-      total_gst_amt += after_discount * (g.rate / 100);
-    });
-
-    // Calculate tax and VAT amounts
-    const tax_amt = after_discount * (tax_pct / 100);
-    const vat_amt = after_discount * (vat_pct / 100);
-
-    const total =
-      after_discount -
-      tds_amt +
-      total_gst_amt +
-      tax_amt +
-      vat_amt +
-      Number(adjustment);
-
-    // Get customer currency
-    const [customerRows] = await conn.query(
-      `SELECT currency FROM zv_customers WHERE id = ?`,
-      [customer_id],
-    );
-
-    const customerCurrency = customerRows[0]?.currency || "USD";
-
-    // Convert to USD
-    const exchangeRate = await getRate(customerCurrency);
-    const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
-    const totalUSD = Number((total / exchangeRate).toFixed(2));
-
-    // Get total paid amount for balance due calculation
-    const [paymentRows] = await conn.query(
-      `SELECT COALESCE(SUM(amount), 0) as paid_amount 
-       FROM zv_payments 
-       WHERE invoice_id = ? AND status IN ('completed', 'success', 'paid')`,
-      [invoiceId],
-    );
-
-    const paidAmount = Number(paymentRows[0]?.paid_amount) || 0;
-    const balanceDue = total - paidAmount;
-
-    // ★ Sanitize HSN/SAC - only for Indian customers
-    const finalHsnSac = (hsn_sac && hsn_sac.trim() !== '') ? hsn_sac.trim() : null;
-
-    /* UPDATE INVOICE HEADER */
-    await conn.query(
-      `UPDATE zv_invoices SET
-        customer_id = ?,
-        address_id = ?,
-        bank_detail_id = ?,
-        project_id = ?,
-
-        reference = ?,
-        invoice_date = ?,
-        due_date = ?,
-        subject = ?,
-        job = ?,
-        contact_person = ?,
-
-        subtotal = ?,
-        discount_pct = ?,
-        discount_amt = ?,
-        after_discount = ?,
-
-        tds_pct = ?,
-        tds_amt = ?,
-
-        tax_pct = ?,
-        tax_amt = ?,
-
-        vat_pct = ?,
-        vat_amt = ?,
-
-        total_gst_amt = ?,
-        adjustment = ?,
-        total = ?,
-
-        currency_code = ?,
-        exchange_rate = ?,
-        subtotal_usd = ?,
-        total_usd = ?,
-        invoice_exchange_date = ?,
-
-        notes = ?,
-        terms = ?,
-        status = ?,
-
-        balance_due = ?,
-        
-        hsn_sac = ?  -- ★ Added HSN/SAC field
-
-      WHERE id = ?`,
-      [
-        customer_id,
-        address_id || null,
-        bank_detail_id || null,
-        req.body.project_id || null,
-
-        reference,
-        invoice_date,
-        due_date,
-        subject,
-        job || null,
-        contact_person || null,
-
-        subtotal,
-        discount_pct,
-        discount_amt,
-        after_discount,
-
-        tds_pct,
-        tds_amt,
-
-        tax_pct || 0,
-        tax_amt,
-
-        vat_pct || 0,
-        vat_amt,
-
-        total_gst_amt,
-        adjustment,
-        total,
-
-        customerCurrency,
-        exchangeRate,
-        subtotalUSD,
-        totalUSD,
-        new Date(),
-
-        notes,
-        terms,
-        req.body.status || "sent",
-
-        balanceDue, // Updated balance due
-        
-        finalHsnSac, // ★ HSN/SAC value
-        
-        invoiceId,
-      ],
-    );
-
-    /* =========================
-       ITEMS SYNC LOGIC
-       ========================= */
-    const [existingItems] = await conn.query(
-      "SELECT id FROM zv_invoice_items WHERE invoice_id = ?",
-      [invoiceId],
-    );
-
-    const existingIds = existingItems.map((i) => i.id);
-    const requestIds = items.filter((i) => i.id).map((i) => i.id);
-
-    const itemsToDelete = existingIds.filter((id) => !requestIds.includes(id));
-
-    for (let id of itemsToDelete) {
-      await conn.query("DELETE FROM zv_invoice_items WHERE id = ?", [id]);
-    }
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const amount = Number(item.quantity) * Number(item.rate);
-
-      if (item.id) {
-        await conn.query(
-          `UPDATE zv_invoice_items
-           SET description = ?, quantity = ?, rate = ?, amount = ?, sort_order = ?
-           WHERE id = ?`,
-          [item.description, item.quantity, item.rate, amount, i + 1, item.id],
-        );
-      } else {
-        await conn.query(
-          `INSERT INTO zv_invoice_items
-           (invoice_id, description, quantity, rate, amount, sort_order)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            invoiceId,
-            item.description,
-            item.quantity,
-            item.rate,
-            amount,
-            i + 1,
-          ],
-        );
-      }
-    }
-
-    /* =========================
-       GST SYNC LOGIC
-       ========================= */
-    const [existingGST] = await conn.query(
-      "SELECT id FROM zv_invoice_gst_lines WHERE invoice_id = ?",
-      [invoiceId],
-    );
-
-    const existingGstIds = existingGST.map((g) => g.id);
-    const requestGstIds = gst_lines.filter((g) => g.id).map((g) => g.id);
-
-    const gstToDelete = existingGstIds.filter(
-      (id) => !requestGstIds.includes(id),
-    );
-
-    for (let id of gstToDelete) {
-      await conn.query("DELETE FROM zv_invoice_gst_lines WHERE id = ?", [id]);
-    }
-
-    for (let i = 0; i < gst_lines.length; i++) {
-      const gst = gst_lines[i];
-      const gstAmount = after_discount * (gst.rate / 100);
-
-      if (gst.id) {
-        await conn.query(
-          `UPDATE zv_invoice_gst_lines
-           SET gst_type = ?, rate = ?, is_custom = ?, gst_amount = ?, sort_order = ?
-           WHERE id = ?`,
-          [
-            gst.gst_type,
-            gst.rate,
-            gst.is_custom || 0,
-            gstAmount,
-            i + 1,
-            gst.id,
-          ],
-        );
-      } else {
-        await conn.query(
-          `INSERT INTO zv_invoice_gst_lines
-           (invoice_id, gst_type, rate, is_custom, gst_amount, sort_order)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            invoiceId,
-            gst.gst_type,
-            gst.rate,
-            gst.is_custom || 0,
-            gstAmount,
-            i + 1,
-          ],
-        );
-      }
-    }
-
-    await conn.commit();
-
-    res.json({
-      success: true,
-      message: "Invoice updated successfully",
-      data: {
-        invoice_id: invoiceId,
-        total: total,
-        balance_due: balanceDue,
-        hsn_sac: finalHsnSac, // ★ Return updated HSN/SAC
-      },
-    });
-  } catch (error) {
-    await conn.rollback();
-    console.error("Update invoice error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  } finally {
-    conn.release();
-  }
-};
-
 
 exports.deleteInvoice = async (req, res) => {
   try {
