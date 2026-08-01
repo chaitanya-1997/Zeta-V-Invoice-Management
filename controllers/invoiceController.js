@@ -1025,8 +1025,8 @@ exports.createInvoice = async (req, res) => {
 
     const {
       customer_id,
-      country_code,
-      address_id,
+      country_code,      // Customer country (for tax purposes)
+      address_id,        // Invoice location (company address)
       project_id,
       bank_detail_id,
       reference,
@@ -1049,14 +1049,12 @@ exports.createInvoice = async (req, res) => {
       lut_arn = null,
     } = req.body;
 
-    // Debug logging
     console.log('Creating invoice with data:', {
       customer_id,
-      country_code,
+      customer_country: country_code,
+      invoice_location_address_id: address_id,
       hsn_sac,
       lut_arn,
-      items_count: items.length,
-      gst_lines_count: gst_lines.length,
     });
 
     const [customerRows] = await conn.query(
@@ -1070,17 +1068,43 @@ exports.createInvoice = async (req, res) => {
 
     const customerCurrency = customerRows[0]?.currency || "USD";
 
-    /* ── Generate Invoice Number ── */
+    /* ── Generate Invoice Number based on INVOICE LOCATION (Company Address) ── */
     let invoiceNumber;
+    // ★ Determine which country code drives the invoice sequence.
+    // Prefer the company address' country (invoice location) when address_id is provided.
+    let seqCountry = null;
 
-    if (country_code) {
+    if (address_id) {
+      const [addrRows] = await conn.query(
+        `SELECT country_code FROM zv_company_addresses WHERE id = ? LIMIT 1`,
+        [address_id],
+      );
+      if (addrRows && addrRows.length > 0 && addrRows[0].country_code) {
+        seqCountry = String(addrRows[0].country_code).toUpperCase();
+        console.log('Using company address country for invoice number:', seqCountry);
+      }
+    }
+
+    // Fall back to incoming country_code parameter if we still don't have one
+    if (!seqCountry && country_code) {
+      seqCountry = String(country_code).toUpperCase();
+      console.log('Falling back to customer country for invoice number:', seqCountry);
+    }
+
+    // Final fallback
+    if (!seqCountry) {
+      seqCountry = 'IN';
+      console.log('Final fallback to IN for invoice number');
+    }
+
+    if (seqCountry) {
       const [seqRows] = await conn.query(
         `SELECT id, prefix, current_number
          FROM zv_invoice_sequences
          WHERE country_code = ?
          LIMIT 1
          FOR UPDATE`,
-        [country_code.toUpperCase()],
+        [seqCountry],
       );
 
       if (seqRows.length) {
@@ -1088,15 +1112,22 @@ exports.createInvoice = async (req, res) => {
         const nextNum = seq.current_number + 1;
 
         invoiceNumber = `${seq.prefix}${String(nextNum).padStart(4, "0")}`;
+        
         await conn.query(
           `UPDATE zv_invoice_sequences SET current_number = ? WHERE id = ?`,
           [nextNum, seq.id],
         );
+        
+        console.log('✅ Generated invoice number:', invoiceNumber, 'for location:', seqCountry);
+      } else {
+        console.warn('⚠️ No sequence found for country:', seqCountry);
       }
     }
 
+    // Fallback if no sequence found or generated
     if (!invoiceNumber) {
       invoiceNumber = "INV-" + Date.now().toString().slice(-6);
+      console.log('Using fallback invoice number:', invoiceNumber);
     }
 
     /* ── Calculations ── */
@@ -1133,9 +1164,6 @@ exports.createInvoice = async (req, res) => {
     const finalHsnSac = (hsn_sac && String(hsn_sac).trim() !== '') ? String(hsn_sac).trim() : null;
     const finalLutArn = (lut_arn && String(lut_arn).trim() !== '') ? String(lut_arn).trim() : null;
 
-    console.log('Inserting invoice with HSN/SAC:', finalHsnSac, 'LUT/ARN:', finalLutArn);
-
-    // ★ FIXED: 35 columns, 35 values
     const [invoiceResult] = await conn.query(
       `INSERT INTO zv_invoices
       (
@@ -1179,41 +1207,41 @@ exports.createInvoice = async (req, res) => {
       (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `,
       [
-        invoiceNumber,                      // 1
-        customer_id,                        // 2
-        address_id || null,                 // 3
-        bank_detail_id || null,             // 4
-        project_id || null,                 // 5
-        reference || null,                  // 6
-        job || null,                        // 7
-        job || null,                        // 8
-        contact_person || null,             // 9
-        invoice_date,                       // 10
-        due_date,                           // 11
-        subtotal,                           // 12
-        discount_pct,                       // 13
-        discount_amt,                       // 14
-        after_discount,                     // 15
-        tds_pct,                            // 16
-        tds_amt,                            // 17
-        Number(tax_pct) || 0,               // 18
-        calc_tax_amt,                       // 19
-        Number(vat_pct) || 0,               // 20
-        calc_vat_amt,                       // 21
-        total_gst_amt,                      // 22
-        adjustment,                         // 23
-        total,                              // 24
-        customerCurrency,                   // 25
-        exchangeRate,                       // 26
-        subtotalUSD,                        // 27
-        totalUSD,                           // 28
-        new Date(),                         // 29
-        notes || null,                      // 30
-        terms || null,                      // 31
-        userId,                             // 32
-        total,                              // 33
-        finalHsnSac,                        // 34
-        finalLutArn,                        // 35
+        invoiceNumber,
+        customer_id,
+        address_id || null,
+        bank_detail_id || null,
+        project_id || null,
+        reference || null,
+        job || null,
+        job || null,
+        contact_person || null,
+        invoice_date,
+        due_date,
+        subtotal,
+        discount_pct,
+        discount_amt,
+        after_discount,
+        tds_pct,
+        tds_amt,
+        Number(tax_pct) || 0,
+        calc_tax_amt,
+        Number(vat_pct) || 0,
+        calc_vat_amt,
+        total_gst_amt,
+        adjustment,
+        total,
+        customerCurrency,
+        exchangeRate,
+        subtotalUSD,
+        totalUSD,
+        new Date(),
+        notes || null,
+        terms || null,
+        userId,
+        total,
+        finalHsnSac,
+        finalLutArn,
       ],
     );
 
@@ -1257,12 +1285,13 @@ exports.createInvoice = async (req, res) => {
       message: "Invoice created successfully",
       invoice_id: invoiceId,
       invoice_number: invoiceNumber,
+      sequence_country: seqCountry,
       hsn_sac: finalHsnSac,
       lut_arn: finalLutArn,
     });
   } catch (error) {
     await conn.rollback();
-    console.error('Error creating invoice:', error);
+    console.error('❌ Error creating invoice:', error);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false, 
@@ -1273,6 +1302,7 @@ exports.createInvoice = async (req, res) => {
     conn.release();
   }
 };
+
 
 exports.updateInvoice = async (req, res) => {
   const conn = await db.promise().getConnection();
