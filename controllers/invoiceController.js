@@ -1014,6 +1014,7 @@ const { getRate } = require("../services/exchangeRateService");
 
 // --- Controller: invoices (updated to support lut_arn) ---
 
+
 exports.createInvoice = async (req, res) => {
   const conn = await db.promise().getConnection();
 
@@ -1044,11 +1045,11 @@ exports.createInvoice = async (req, res) => {
       vat_amt = 0,
       items = [],
       gst_lines = [],
-      hsn_sac = null, // ★ NEW field (already present)
-      lut_arn = null, // ★ NEW LUT/ARN field from client
+      hsn_sac = null,
+      lut_arn = null,
     } = req.body;
 
-    // ★ Debug logging
+    // Debug logging
     console.log('Creating invoice with data:', {
       customer_id,
       country_code,
@@ -1056,7 +1057,6 @@ exports.createInvoice = async (req, res) => {
       lut_arn,
       items_count: items.length,
       gst_lines_count: gst_lines.length,
-      isIndian: country_code?.toUpperCase() === 'IN'
     });
 
     const [customerRows] = await conn.query(
@@ -1109,7 +1109,6 @@ exports.createInvoice = async (req, res) => {
     const after_discount = subtotal - discount_amt;
     const tds_amt = after_discount * (tds_pct / 100);
 
-    // India GST
     let total_gst_amt = 0;
     gst_lines.forEach((g) => {
       total_gst_amt += after_discount * (g.rate / 100);
@@ -1131,14 +1130,12 @@ exports.createInvoice = async (req, res) => {
     const subtotalUSD = Number((subtotal / exchangeRate).toFixed(2));
     const totalUSD = Number((total / exchangeRate).toFixed(2));
 
-    // ★ Ensure hsn_sac is null if not provided or empty
     const finalHsnSac = (hsn_sac && String(hsn_sac).trim() !== '') ? String(hsn_sac).trim() : null;
-    // ★ Ensure lut_arn is null if not provided or empty
     const finalLutArn = (lut_arn && String(lut_arn).trim() !== '') ? String(lut_arn).trim() : null;
 
-    // ★ Log the final query parameters for debugging
     console.log('Inserting invoice with HSN/SAC:', finalHsnSac, 'LUT/ARN:', finalLutArn);
 
+    // ★ FIXED: 35 columns, 35 values
     const [invoiceResult] = await conn.query(
       `INSERT INTO zv_invoices
       (
@@ -1179,44 +1176,44 @@ exports.createInvoice = async (req, res) => {
         lut_arn
       )
       VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `,
       [
-        invoiceNumber,
-        customer_id,
-        address_id || null,
-        bank_detail_id || null,
-        project_id || null,
-        reference || null,
-        job || null,
-        job || null,
-        contact_person || null,
-        invoice_date,
-        due_date,
-        subtotal,
-        discount_pct,
-        discount_amt,
-        after_discount,
-        tds_pct,
-        tds_amt,
-        Number(tax_pct) || 0,
-        calc_tax_amt,
-        Number(vat_pct) || 0,
-        calc_vat_amt,
-        total_gst_amt,
-        adjustment,
-        total,
-        customerCurrency,
-        exchangeRate,
-        subtotalUSD,
-        totalUSD,
-        new Date(),
-        notes || null,
-        terms || null,
-        userId,
-        total,
-        finalHsnSac, // hsn_sac
-        finalLutArn, // lut_arn
+        invoiceNumber,                      // 1
+        customer_id,                        // 2
+        address_id || null,                 // 3
+        bank_detail_id || null,             // 4
+        project_id || null,                 // 5
+        reference || null,                  // 6
+        job || null,                        // 7
+        job || null,                        // 8
+        contact_person || null,             // 9
+        invoice_date,                       // 10
+        due_date,                           // 11
+        subtotal,                           // 12
+        discount_pct,                       // 13
+        discount_amt,                       // 14
+        after_discount,                     // 15
+        tds_pct,                            // 16
+        tds_amt,                            // 17
+        Number(tax_pct) || 0,               // 18
+        calc_tax_amt,                       // 19
+        Number(vat_pct) || 0,               // 20
+        calc_vat_amt,                       // 21
+        total_gst_amt,                      // 22
+        adjustment,                         // 23
+        total,                              // 24
+        customerCurrency,                   // 25
+        exchangeRate,                       // 26
+        subtotalUSD,                        // 27
+        totalUSD,                           // 28
+        new Date(),                         // 29
+        notes || null,                      // 30
+        terms || null,                      // 31
+        userId,                             // 32
+        total,                              // 33
+        finalHsnSac,                        // 34
+        finalLutArn,                        // 35
       ],
     );
 
@@ -1260,8 +1257,8 @@ exports.createInvoice = async (req, res) => {
       message: "Invoice created successfully",
       invoice_id: invoiceId,
       invoice_number: invoiceNumber,
-      lut_arn: finalLutArn,
       hsn_sac: finalHsnSac,
+      lut_arn: finalLutArn,
     });
   } catch (error) {
     await conn.rollback();
@@ -1276,7 +1273,6 @@ exports.createInvoice = async (req, res) => {
     conn.release();
   }
 };
-
 
 exports.updateInvoice = async (req, res) => {
   const conn = await db.promise().getConnection();
